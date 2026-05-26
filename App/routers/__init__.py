@@ -1,0 +1,1 @@
+from .navegacion import configurar_rutas
