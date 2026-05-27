@@ -106,46 +106,22 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 break
             await asyncio.sleep(1)
 
-    def confirmar_compra_dialog(pago):
-        if not productos:
-            snack = ft.SnackBar(
-                content=ft.Text("No hay productos para comprar."),
-                bgcolor=ft.Colors.RED
-            )
-            pagina.overlay.append(snack)
-            snack.open = True
-            pagina.update()
-            return
+    def confirmar_compra(pago):
 
         resultado = compras_controller.confirmar_compra(
-            usuario=usuario,
+
+            proveedor=proveedor_actual,
             productos=productos,
-            proveedor=proveedor_actual
+            usuario=usuario
         )
 
         if not resultado:
-            snack = ft.SnackBar(
-                content=ft.Text("Error al guardar la compra."),
-                bgcolor=ft.Colors.RED
-            )
-            pagina.overlay.append(snack)
-            snack.open = True
-            pagina.update()
+            print("Error al guardar la compra")
             return
 
-        mensajes = []
-        for p in productos:
-            info = compras_controller.obtener_producto_stock(p.get('id'))
-            if info:
-                mensajes.append(f"{info.get('nombre')}: {info.get('stock')}")
+        print(f"Compra {resultado['id_compra']} guardada")
+        print(f"PDF: {resultado['ruta_pdf']}")
 
-        snack = ft.SnackBar(
-            content=ft.Text("\n".join(mensajes) or "Compra registrada correctamente."),
-            bgcolor=ft.Colors.GREEN
-        )
-        pagina.overlay.append(snack)
-        snack.open = True
-        pagina.update()
         limpiar_compra()
 
     def facturar():
@@ -165,7 +141,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog = metodo_pago_view(
             pagina,
             total_valor,
-            confirmar_compra_dialog
+            confirmar_compra
         )
         pagina.overlay.append(dialog)
         dialog.open = True

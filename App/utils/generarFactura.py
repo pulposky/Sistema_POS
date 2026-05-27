@@ -70,7 +70,7 @@ def generar_factura_pdf(
     dinero_recibido,
     cambio,
     abrir=True,
-    logo_path="App/assets/Logo_sena.png",
+    logo_path="assets/Logo_sena.png",
     efectivo=None,
     transferencia=None,
     titulo_documento="FACTURA DE VENTA",

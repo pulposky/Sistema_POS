@@ -1,6 +1,8 @@
 from datetime import datetime
 from models import comprasModel
 from models.ventasModel import obtener_producto_por_id
+from models.comprasModel import guardar_compra
+from utils.generarFactura import generar_factura_pdf
 
 
 def calcular_total(productos):
@@ -18,22 +20,49 @@ def formatear_cantidad(cantidad):
     return str(cantidad)
 
 
-def confirmar_compra(usuario, productos, proveedor=None):
+def confirmar_compra(proveedor, productos, usuario):
+
     total_valor = calcular_total(productos)
     compra_datos = {
+
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "total": total_valor,
-        "id_proveedor": (
-            proveedor.get("id_proveedor")
-            if proveedor and proveedor.get("id_proveedor") is not None
-            else proveedor.get("id_cliente")
-            if proveedor
-            else None
-        ),
+        "id_proveedor": proveedor["id_proveedor"],
         "id_usuario": usuario.get("id_usuario", 1),
         "estado": "ACTIVA",
     }
-    return comprasModel.guardar_compra(compra_datos, productos)
+
+    id_compra = guardar_compra(
+        compra_datos,
+        productos
+    )
+
+    if not id_compra:
+        return None
+
+    # GENERAR PDF
+    ruta_pdf = generar_factura_pdf(
+        id_factura=id_compra,
+        cliente={
+            "nombre": proveedor.get("nombre", "Proveedor"),
+            "documento": proveedor.get("nit", "-")
+        },
+
+        usuario=usuario,
+        productos=list(productos),
+        total=total_valor,
+        metodo_pago="COMPRA",
+        dinero_recibido=total_valor,
+        cambio=0,
+        abrir=True,
+        titulo_documento="FACTURA DE COMPRA",
+        prefijo_archivo="compra",
+    )
+
+    return {
+        "id_compra": id_compra,
+        "ruta_pdf": ruta_pdf,
+    }
 
 
 def obtener_producto_stock(id_producto):
