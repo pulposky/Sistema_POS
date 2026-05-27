@@ -6,6 +6,7 @@ from utils.buscarCliente import buscar_cliente_view
 from controllers import ventasController as ventas_controller
 from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
+from utils.confirmacion import confirmar_view
 
 
 # =========================================================
@@ -349,39 +350,40 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     def borrar_factura_actual():
         nonlocal index_factura
-        # ----------------------------------------
-        # SI ESTA EN NUEVA FACTURA
-        # SOLO LIMPIA LA PANTALLA
-        # ----------------------------------------
+
+        # Mensaje según el contexto
         if not modo_consulta:
-            limpiar_factura()
-            snack = ft.SnackBar(
-                content=ft.Text("Factura limpiada"),
-                bgcolor=ft.Colors.BLUE
-            )
-            pagina.overlay.append(snack)
-            snack.open = True
-            pagina.update()
-            return
+            mensaje = "¿Deseas limpiar la factura actual?"
+        else:
+            mensaje = f"¿Deseas anular la factura #{id_factura_actual:04d}?"
 
-        # ----------------------------------------
-        # SI ESTA EN CONSULTA
-        # ANULA / ELIMINA FACTURA
-        # ----------------------------------------
-        if id_factura_actual is None:
-            return
+        def on_confirmar(confirmado):
+            if not confirmado:
+                return
 
-        if ventas_controller.borrar_factura(id_factura_actual):
-            snack = ft.SnackBar(
-                content=ft.Text("Factura anulada"),
-                bgcolor=ft.Colors.RED
-            )
-            pagina.overlay.append(snack)
-            snack.open = True
-            facturas.clear()
-            index_factura = -1
+            if not modo_consulta:
+                limpiar_factura()
+                snack = ft.SnackBar(content=ft.Text("Factura limpiada"), bgcolor=ft.Colors.BLUE)
+                pagina.overlay.append(snack)
+                snack.open = True
+                pagina.update()
+                return
 
-            cargar_lista_facturas()
+            if id_factura_actual is None:
+                return
+
+            if ventas_controller.borrar_factura(id_factura_actual):
+                snack = ft.SnackBar(content=ft.Text("Factura anulada"), bgcolor=ft.Colors.RED)
+                pagina.overlay.append(snack)
+                snack.open = True
+                facturas.clear()
+                index_factura = -1
+                cargar_lista_facturas()
+
+        dialog = confirmar_view(pagina, mensaje, on_confirmar)
+        pagina.overlay.append(dialog)
+        dialog.open = True
+        pagina.update()
 
     # Abro el dialogo para buscar productos con F3
     def buscar_producto():
