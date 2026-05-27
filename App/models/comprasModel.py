@@ -1,5 +1,24 @@
 from database.bd import conectar
 
+def buscar_proveedor(texto):
+    conexion = conectar()
+    cursor = conexion.cursor(dictionary=True)
+
+    sql = """
+        SELECT *
+        FROM proveedores
+        WHERE nombre LIKE %s
+        LIMIT 20
+    """
+
+    cursor.execute(sql, (f"%{texto}%",))
+
+    resultados = cursor.fetchall()
+
+    cursor.close()
+    conexion.close()
+
+    return resultados
 
 def guardar_compra(compra_datos, detalles):
     conexion = conectar()
@@ -13,15 +32,14 @@ def guardar_compra(compra_datos, detalles):
                 id_proveedor,
                 id_usuario,
                 estado
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s)
         """
         cursor.execute(sql_compra, (
             compra_datos.get('fecha'),
             compra_datos.get('total', 0),
             compra_datos.get('id_proveedor'),
             compra_datos.get('id_usuario', 1),
-            compra_datos.get('estado', 'ACTIVA'),
-            compra_datos.get('notas')
+            compra_datos.get('estado', 'ACTIVA')
         ))
         id_compra = cursor.lastrowid
 

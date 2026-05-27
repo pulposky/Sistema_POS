@@ -2,11 +2,11 @@ import flet as ft
 from datetime import datetime
 import asyncio
 from utils.buscarProducto import buscar_producto_view
-from utils.buscarCliente import buscar_cliente_view
 from controllers import comprasController as compras_controller
 from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
+from utils.buscarProveedor import buscar_proveedor_view
 
 
 # =========================================================
@@ -216,10 +216,10 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ])
             )
 
-        nombreProveedor.value = (
-            f"{proveedor_actual.get('nombre')} - {proveedor_actual.get('rol', 'Proveedor')}"
-            if proveedor_actual else ""
-        )
+            nombreProveedor.value = (
+                proveedor_actual.get("nombre", "")
+                if proveedor_actual else ""
+            )
 
         if compra["estado"] == "ANULADA":
             numeroCompra.value = f"COMPRA ANULADA #{id_compra:04d}"
@@ -267,22 +267,37 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             limpiar_compra()
 
     def borrar_compra_actual():
-
         nonlocal index_compra
-        # Mensaje dependiendo si estoy en nueva compra
-        # o consultando una compra guardada
+        # -----------------------------
+        # MODO NUEVA COMPRA
+        # -----------------------------
         if not modo_consulta:
             mensaje = "¿Deseas limpiar la compra actual?"
+        # -----------------------------
+        # MODO CONSULTA
+        # -----------------------------
         else:
-            mensaje = f"¿Deseas anular la compra #{id_compra_actual:04d}?"
+            # VALIDAR PERMISOS
+            if usuario.get("rol", "").lower() == "Aprendiz":
+                snack = ft.SnackBar(
+                    content=ft.Text(
+                        "No tienes permisos para anular compras"
+                    ),
+                    bgcolor=ft.Colors.RED
+                )
+                pagina.overlay.append(snack)
+                snack.open = True
+                pagina.update()
+                return
 
-        # Función que se ejecuta al confirmar
+            mensaje = f"¿Deseas anular la compra #{id_compra_actual:04d}?"
+        # -----------------------------
+        # CONFIRMAR
+        # -----------------------------
         def on_confirmar(confirmado):
             if not confirmado:
                 return
-            # -------------------------------
-            # LIMPIAR COMPRA ACTUAL
-            # -------------------------------
+            # LIMPIAR
             if not modo_consulta:
                 limpiar_compra()
                 snack = ft.SnackBar(
@@ -293,37 +308,37 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 snack.open = True
                 pagina.update()
                 return
-            # -------------------------------
-            # ANULAR COMPRA
-            # -------------------------------
+            
+            # ANULAR
             if id_compra_actual is None:
                 return
+            
             if compras_controller.anular_compra(id_compra_actual):
                 snack = ft.SnackBar(
                     content=ft.Text("Compra anulada"),
                     bgcolor=ft.Colors.RED
                 )
+
                 pagina.overlay.append(snack)
                 snack.open = True
                 compras.clear()
                 index_compra = -1
                 cargar_lista_compras()
 
-        # Dialogo de confirmación
         dialog = confirmar_view(
             pagina,
             mensaje,
             on_confirmar
         )
-
         pagina.overlay.append(dialog)
-
         dialog.open = True
-
         pagina.update()
 
     def buscar_proveedor():
-        dialog = buscar_cliente_view(pagina, seleccionar_proveedor)
+        dialog = buscar_proveedor_view(
+            pagina,
+            seleccionar_proveedor
+        )
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()

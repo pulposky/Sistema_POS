@@ -368,48 +368,53 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             limpiar_factura()
 
     def borrar_remision_actual():
-
         nonlocal index_remision
-        # -----------------------------------------
-        # SI ES NUEVA REMISION
-        # -----------------------------------------
+        # -----------------------------
+        # NUEVA REMISION
+        # -----------------------------
         if not modo_consulta:
-            mensaje = "¿Deseas limpiar la remisión actual?"
+            mensaje = "¿Deseas limpiar la remision actual?"
+        # -----------------------------
+        # MODO CONSULTA
+        # -----------------------------
         else:
-            mensaje = (
-                f"¿Deseas anular la remisión "
-                f"#{id_remision_actual:04d}?"
-            )
-        # ----------------------------------------
-        # CONFIRMAR
-        # -----------------------------------------
-        def on_confirmar(confirmado):
-            if not confirmado:
-                return
-            # -----------------------------------------
-            # LIMPIAR PANTALLA
-            # -----------------------------------------
-            if not modo_consulta:
-                limpiar_factura()
+            # VALIDAR PERMISOS
+            if usuario.get("rol", "").lower() == "aprendiz":
                 snack = ft.SnackBar(
-                    content=ft.Text("Remisión limpiada"),
-                    bgcolor=ft.Colors.BLUE
+                    content=ft.Text(
+                        "No tienes permisos para anular remisiones"
+                    ),
+                    bgcolor=ft.Colors.RED
                 )
                 pagina.overlay.append(snack)
                 snack.open = True
                 pagina.update()
                 return
 
-            # -----------------------------------------
-            # ANULAR REMISION
-            # -----------------------------------------
+            mensaje = f"¿Deseas anular la remision #{id_remision_actual:04d}?"
+        # -----------------------------
+        # CONFIRMACION
+        # -----------------------------
+        def on_confirmar(confirmado):
+            if not confirmado:
+                return
+            # LIMPIAR
+            if not modo_consulta:
+                limpiar_factura()
+                snack = ft.SnackBar(
+                    content=ft.Text("Remision limpiada"),
+                    bgcolor=ft.Colors.BLUE
+                )
+                pagina.overlay.append(snack)
+                snack.open = True
+                pagina.update()
+                return
+            # ANULAR
             if id_remision_actual is None:
                 return
-            if remision_controller.borrar_remision(
-                id_remision_actual
-            ):
+            if remision_controller.borrar_remision(id_remision_actual):
                 snack = ft.SnackBar(
-                    content=ft.Text("Remisión anulada"),
+                    content=ft.Text("Remision anulada"),
                     bgcolor=ft.Colors.RED
                 )
                 pagina.overlay.append(snack)
@@ -417,9 +422,6 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 remisiones.clear()
                 index_remision = -1
                 cargar_lista_remisiones()
-        # -----------------------------------------
-        # DIALOGO
-        # -----------------------------------------
         dialog = confirmar_view(
             pagina,
             mensaje,

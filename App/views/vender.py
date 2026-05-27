@@ -351,19 +351,37 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def borrar_factura_actual():
         nonlocal index_factura
 
-        # Mensaje según el contexto
+        # -----------------------------------
+        # MODO NUEVA FACTURA
+        # -----------------------------------
         if not modo_consulta:
             mensaje = "¿Deseas limpiar la factura actual?"
-        else:
-            mensaje = f"¿Deseas anular la factura #{id_factura_actual:04d}?"
 
-        def on_confirmar(confirmado):
-            if not confirmado:
-                return
-
-            if not modo_consulta:
+            def on_confirmar(confirmado):
+                if not confirmado:
+                    return
                 limpiar_factura()
-                snack = ft.SnackBar(content=ft.Text("Factura limpiada"), bgcolor=ft.Colors.BLUE)
+
+                snack = ft.SnackBar(
+                    content=ft.Text("Factura limpiada"),
+                    bgcolor=ft.Colors.BLUE
+                )
+                pagina.overlay.append(snack)
+                snack.open = True
+                pagina.update()
+
+        # -----------------------------------
+        # MODO CONSULTA
+        # -----------------------------------
+        else:
+            # VALIDAR PERMISOS
+            if usuario.get("rol", "").lower() == "Aprendiz":
+                snack = ft.SnackBar(
+                    content=ft.Text(
+                        "No tienes permisos para anular facturas"
+                    ),
+                    bgcolor=ft.Colors.RED
+                )
                 pagina.overlay.append(snack)
                 snack.open = True
                 pagina.update()
@@ -372,15 +390,38 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             if id_factura_actual is None:
                 return
 
-            if ventas_controller.borrar_factura(id_factura_actual):
-                snack = ft.SnackBar(content=ft.Text("Factura anulada"), bgcolor=ft.Colors.RED)
-                pagina.overlay.append(snack)
-                snack.open = True
-                facturas.clear()
-                index_factura = -1
-                cargar_lista_facturas()
+            mensaje = (
+                f"¿Deseas anular la factura "
+                f"#{id_factura_actual:04d}?"
+            )
 
-        dialog = confirmar_view(pagina, mensaje, on_confirmar)
+            def on_confirmar(confirmado):
+                nonlocal index_factura
+
+                if not confirmado:
+                    return
+
+                if ventas_controller.borrar_factura(
+                    id_factura_actual
+                ):
+                    snack = ft.SnackBar(
+                        content=ft.Text("Factura anulada"),
+                        bgcolor=ft.Colors.RED
+                    )
+                    pagina.overlay.append(snack)
+                    snack.open = True
+                    facturas.clear()
+                    index_factura = -1
+                    cargar_lista_facturas()
+
+        # -----------------------------------
+        # DIALOGO GENERAL
+        # -----------------------------------
+        dialog = confirmar_view(
+            pagina,
+            mensaje,
+            on_confirmar
+        )
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
