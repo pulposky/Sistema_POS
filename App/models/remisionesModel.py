@@ -113,32 +113,28 @@ def obtener_detalles_remision(id_remision):
 # ELIMINAR REMISION
 # =====================================================
 def eliminar_remision(id_remision):
-
     conexion = conectar()
     cursor = conexion.cursor()
 
     try:
-        # Primero elimino los detalles relacionados
+        # SOLO CAMBIA EL ESTADO
         cursor.execute(
-            "DELETE FROM detalle_remision WHERE id_remision = %s",
+            """
+            UPDATE remision
+            SET estado = 'ANULADA'
+            WHERE id_remision = %s
+            """,
             (id_remision,)
         )
-        # Luego elimino la remisión principal
-        cursor.execute(
-            "DELETE FROM remision WHERE id_remision = %s",
-            (id_remision,)
-        )
-
         conexion.commit()
         cursor.close()
         conexion.close()
         return True
 
     except Exception as err:
-
         conexion.rollback()
         cursor.close()
         conexion.close()
-        print(f"Error al eliminar remision: {err}")
+        print(f"Error al anular remision: {err}")
 
         return False

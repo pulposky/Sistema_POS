@@ -5,7 +5,7 @@ from utils.buscarProducto import buscar_producto_view
 from utils.buscarCliente import buscar_cliente_view
 from controllers import remisionController as remision_controller
 from utils.crearP_C import Crear
-
+from utils.confirmacion import confirmar_view
 
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR REMISIONES
@@ -368,14 +368,66 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             limpiar_factura()
 
     def borrar_remision_actual():
-        nonlocal index_remision
-        if not modo_consulta or id_remision_actual is None:
-            return
 
-        if remision_controller.borrar_remision(id_remision_actual):
-            remisiones.clear()
-            index_remision = -1
-            cargar_lista_remisiones()
+        nonlocal index_remision
+        # -----------------------------------------
+        # SI ES NUEVA REMISION
+        # -----------------------------------------
+        if not modo_consulta:
+            mensaje = "¿Deseas limpiar la remisión actual?"
+        else:
+            mensaje = (
+                f"¿Deseas anular la remisión "
+                f"#{id_remision_actual:04d}?"
+            )
+        # ----------------------------------------
+        # CONFIRMAR
+        # -----------------------------------------
+        def on_confirmar(confirmado):
+            if not confirmado:
+                return
+            # -----------------------------------------
+            # LIMPIAR PANTALLA
+            # -----------------------------------------
+            if not modo_consulta:
+                limpiar_factura()
+                snack = ft.SnackBar(
+                    content=ft.Text("Remisión limpiada"),
+                    bgcolor=ft.Colors.BLUE
+                )
+                pagina.overlay.append(snack)
+                snack.open = True
+                pagina.update()
+                return
+
+            # -----------------------------------------
+            # ANULAR REMISION
+            # -----------------------------------------
+            if id_remision_actual is None:
+                return
+            if remision_controller.borrar_remision(
+                id_remision_actual
+            ):
+                snack = ft.SnackBar(
+                    content=ft.Text("Remisión anulada"),
+                    bgcolor=ft.Colors.RED
+                )
+                pagina.overlay.append(snack)
+                snack.open = True
+                remisiones.clear()
+                index_remision = -1
+                cargar_lista_remisiones()
+        # -----------------------------------------
+        # DIALOGO
+        # -----------------------------------------
+        dialog = confirmar_view(
+            pagina,
+            mensaje,
+            on_confirmar
+        )
+        pagina.overlay.append(dialog)
+        dialog.open = True
+        pagina.update()
 
     # Abro el dialogo para buscar productos con F3
     def buscar_producto():
@@ -560,6 +612,8 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Producto")),
             ft.DataColumn(ft.Text("Cantidad")),
             ft.DataColumn(ft.Text("Unidad")),
+            ft.DataColumn(ft.Text("Precio")),
+            ft.DataColumn(ft.Text("Subtotal")),
             ft.DataColumn(ft.Text("Empresa")),
         ],
         rows=[],
