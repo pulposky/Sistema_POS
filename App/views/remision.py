@@ -224,8 +224,10 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         limpiar_factura()
 
     # ---------------- FACTURAR ----------------
+    dialog_remision = None
 
     def facturar():
+        nonlocal dialog_remision
 
         if modo_consulta:
             print("No se puede generar remision en modo consulta")
@@ -235,7 +237,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             return
 
         def cerrar_dialogo(e=None):
-            dialog.open = False
+            dialog_remision.open = False
             pagina.update()
 
         tipo_remision = ft.RadioGroup(
@@ -250,7 +252,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             cerrar_dialogo()
             confirmar_remision(tipo_remision.value)
 
-        dialog = ft.AlertDialog(
+        dialog_remision = ft.AlertDialog(
             modal=True,
             title=ft.Text("Generar remision", weight="bold"),
             content=ft.Container(
@@ -269,14 +271,15 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     "Generar PDF",
                     bgcolor=ft.Colors.GREEN,
                     color=ft.Colors.WHITE,
-                    on_click=generar
+                    on_click=generar,
+                    autofocus=True
                 )
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
 
-        pagina.overlay.append(dialog)
-        dialog.open = True
+        pagina.overlay.append(dialog_remision)
+        dialog_remision.open = True
         pagina.update()
 
 
