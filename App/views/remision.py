@@ -42,7 +42,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # ---------------- CAMPOS ----------------
 
     logo = ft.Image(
-        src="App/assets/Logo_sena.png",
+        src="assets/Logo_sena.png",
         width=50,
         height=50
     )

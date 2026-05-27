@@ -2,7 +2,7 @@ from database.bd import conectar
 
 
 # Esta función verifica si el usuario existe en la base de datos
-def iniciar_sesion(usuario, contraseña):
+def iniciar_sesion(usuario, password):
 
     # Conecto a la base de datos
     conexion = conectar()
@@ -16,7 +16,7 @@ def iniciar_sesion(usuario, contraseña):
     # Ejecuto la consulta
     cursor.execute(
         sql,
-        (usuario, contraseña)
+        (usuario, password)
     )
 
     # Obtengo un solo resultado
