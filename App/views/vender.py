@@ -18,7 +18,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # Lista donde se guardan los productos agregados a la venta
     productos = []
-
+    print (f"Usuario en vender: {usuario}")
     # Cliente seleccionado actualmente
     cliente_actual = None
 
@@ -375,7 +375,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------------
         else:
             # VALIDAR PERMISOS
-            if usuario.get("rol", "").lower() == "Aprendiz":
+            if usuario.get("rol", "") == "Aprendiz":
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular facturas"

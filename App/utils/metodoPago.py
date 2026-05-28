@@ -12,7 +12,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
 
     teclado_anterior = pagina.on_keyboard_event
     dialogo_cerrado = False
-    metodo_actual = "Efectivo"
+    metodo_actual = "Transferencia" # Selecciono transferencia por defecto porque es lo más común en ventas grandes
 
     # ---------------- CAMPOS ----------------
 
@@ -32,31 +32,31 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
     texto_faltante = ft.Text(f"Faltante: ${total:,.0f}",     size=14, color=ft.Colors.RED)
     texto_cambio   = ft.Text("Cambio: $0",                   size=14, color=ft.Colors.GREEN)
 
-    # Fila de efectivo, visible por defecto
+    # Fila de efectivo, oculto por defecto 
     fila_efectivo = ft.Column(
         [ft.Text("Efectivo:", weight="bold"), campo_efectivo],
         spacing=5,
-        visible=True
+        visible=False
     )
 
-    # Fila de transferencia, oculta por defecto
+    # Fila de transferencia, visible por defecto
     fila_transferencia = ft.Column(
         [ft.Text("Transferencia:", weight="bold"), campo_transferencia],
         spacing=5,
-        visible=False
+        visible=True
     )
 
     # Contenedor principal de campos
     campos_pago = ft.Column(
         [
-            fila_efectivo,
             fila_transferencia,
+            fila_efectivo,
             ft.Divider(),
             texto_faltante,
             texto_cambio
         ],
         spacing=10,
-        visible=True
+        visible=False
     )
 
     # Mensaje para credito
@@ -72,7 +72,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         "✓ Pago por transferencia por el total",
         size=13,
         color=ft.Colors.BLUE,
-        visible=False
+        visible=True
     )
 
     # ---------------- FUNCIONES ----------------
@@ -239,12 +239,12 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     texto_total,
                     ft.Divider(),
                     ft.RadioGroup(
-                        value="Efectivo",
+                        value="Transferencia",
                         on_change=seleccionar_metodo,
                         content=ft.Column(
                             [
-                                ft.Radio(value="Efectivo",      label="💵 Efectivo"),
                                 ft.Radio(value="Transferencia", label="🏦 Transferencia"),
+                                ft.Radio(value="Efectivo",      label="💵 Efectivo"),
                                 ft.Radio(value="Mixto",         label="💵🏦 Mixto"),
                                 ft.Radio(value="Credito",       label="📄 Crédito"),
                             ],

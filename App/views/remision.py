@@ -60,6 +60,15 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     numeroFactura = ft.Text("Numero de remision: 0001", size=17, weight="bold")
 
+    # Campo de notas (aparecerá solo para Retiro Transformación)
+    campo_notas = ft.TextField(
+        label="Notas",
+        width=400,
+        multiline=True,
+        max_lines=3,
+        visible=False
+    )
+
     # ---------------- FUNCIONES ----------------
 
     # Actualizo el resumen de la remision en pantalla
@@ -207,12 +216,13 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 break
             await asyncio.sleep(1)
 
-    def confirmar_remision(tipo_remision):
+    def confirmar_remision(tipo_remision, notas=""):
         resultado = remision_controller.confirmar_remision(
             tipo_remision=tipo_remision,
             productos=productos,
             cliente=cliente_actual,
-            usuario=usuario
+            usuario=usuario,
+            notas=notas
         )
 
         if not resultado:
@@ -236,21 +246,40 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             print("No hay productos en la remision")
             return
 
+        # Guardar el teclado anterior (de remision.py)
+        teclado_anterior = pagina.on_keyboard_event
+
         def cerrar_dialogo(e=None):
             dialog_remision.open = False
+            # Restaurar el teclado anterior
+            if pagina.on_keyboard_event == teclado_dialogo:
+                pagina.on_keyboard_event = teclado_anterior
             pagina.update()
 
         tipo_remision = ft.RadioGroup(
-            value=opciones_remision[0],
+            value="Retiro Transformacion",
             content=ft.Column(
                 [ft.Radio(value=opcion, label=opcion) for opcion in opciones_remision],
                 spacing=6
             )
         )
 
+        def seleccionar_tipo(e):
+            # Mostrar campo de notas solo para Retiro Transformación
+            campo_notas.visible = (e.control.value == "Retiro Transformacion")
+            campo_notas.value = ""  # Limpiar notas al cambiar tipo
+            pagina.update()
+
+        tipo_remision.on_change = seleccionar_tipo
+
         def generar(e=None):
             cerrar_dialogo()
-            confirmar_remision(tipo_remision.value)
+            notas = campo_notas.value if campo_notas.visible else ""
+            confirmar_remision(tipo_remision.value, notas)
+
+        # Inicializar notas para el diálogo
+        campo_notas.value = ""
+        campo_notas.visible = True
 
         dialog_remision = ft.AlertDialog(
             modal=True,
@@ -261,6 +290,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     [
                         ft.Text("Selecciona el motivo de la remision:"),
                         tipo_remision,
+                        campo_notas,
                     ],
                     spacing=10
                 )
@@ -277,6 +307,16 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ],
             actions_alignment=ft.MainAxisAlignment.END
         )
+
+        # Teclado temporal del diálogo
+        async def teclado_dialogo(e: ft.KeyboardEvent):
+            if e.key == "Escape":
+                cerrar_dialogo()
+            elif e.key == "Enter":
+                generar()
+
+        # Reemplazar temporalmente el teclado
+        pagina.on_keyboard_event = teclado_dialogo
 
         pagina.overlay.append(dialog_remision)
         dialog_remision.open = True
@@ -322,11 +362,13 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             cantidad_texto = remision_controller.formatear_cantidad(producto["cantidad"])
             tabla_productos.rows.append(
                 ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(str(producto["id"]))),
-                    ft.DataCell(ft.Text(producto["nombre"])),
+                    ft.DataCell(ft.Text(str(producto.get("id", "-")))),
+                    ft.DataCell(ft.Text(producto.get("nombre", "Sin nombre"))),
                     ft.DataCell(ft.Text(cantidad_texto)),
-                    ft.DataCell(ft.Text(producto["unidad"])),
-                    ft.DataCell(ft.Text(producto["lugar"]))
+                    ft.DataCell(ft.Text(producto.get("unidad", "UND"))),
+                    ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
+                    ft.DataCell(ft.Text(f"${producto.get('subtotal', 0):,.2f}")),
+                    ft.DataCell(ft.Text(str(producto.get("lugar", "-"))))
                 ])
             )
 
@@ -382,7 +424,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------
         else:
             # VALIDAR PERMISOS
-            if usuario.get("rol", "").lower() == "aprendiz":
+            if usuario.get("rol", "") == "Aprendiz":
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular remisiones"
@@ -792,6 +834,9 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # Activo los atajos de teclado de esta vista
     pagina.on_keyboard_event = teclado
+
+
+    cargar_lista_remisiones() # Cargo las remisiones para mostrar la primera al cargar la vista
 
     # Refresco la pantalla
     pagina.update()

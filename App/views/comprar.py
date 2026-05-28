@@ -254,7 +254,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------
         else:
             # VALIDAR PERMISOS
-            if usuario.get("rol", "").lower() == "Aprendiz":
+            if usuario.get("rol", "") == "Aprendiz":
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular compras"
@@ -520,6 +520,8 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             spacing=0
         )
     )
+
+    cargar_lista_compras() # Cargo las compras para mostrar la primera al cargar la vista
 
     pagina.on_keyboard_event = teclado
     pagina.update()

@@ -48,12 +48,13 @@ def preparar_producto_remision(producto):
 
 
 # Guardo la remision y genero el PDF.
-def confirmar_remision(tipo_remision, productos, cliente, usuario):
+def confirmar_remision(tipo_remision, productos, cliente, usuario, notas=""):
     remision_datos = {
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "tipo_remision": tipo_remision,
         "id_cliente": cliente["id_cliente"] if cliente else 1,
         "id_usuario": usuario.get("id_usuario", 1),
+        "notas": notas,
     }
 
     id_remision = guardar_remision(remision_datos, productos)

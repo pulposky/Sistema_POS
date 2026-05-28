@@ -8,8 +8,8 @@ def guardar_remision(remision_datos, detalles):
 
     try:
         sql_remision = """
-            INSERT INTO remision (fecha, tipo_remision, id_cliente, id_usuario)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO remision (fecha, tipo_remision, id_cliente, id_usuario, notas)
+            VALUES (%s, %s, %s, %s, %s)
         """
 
         cursor.execute(sql_remision, (
@@ -17,6 +17,7 @@ def guardar_remision(remision_datos, detalles):
             remision_datos.get("tipo_remision"),
             remision_datos.get("id_cliente"),
             remision_datos.get("id_usuario", 1),
+            remision_datos.get("notas", ""),
         ))
 
         id_remision = cursor.lastrowid
@@ -57,7 +58,7 @@ def obtener_todas_remisiones():
     cursor = conexion.cursor(dictionary=True)
 
     sql = """
-        SELECT id_remision, fecha, tipo_remision, id_cliente, id_usuario
+        SELECT id_remision, fecha, tipo_remision, id_cliente, id_usuario, notas
         FROM remision
         ORDER BY id_remision DESC
     """
@@ -77,7 +78,7 @@ def obtener_remision_por_id(id_remision):
     cursor = conexion.cursor(dictionary=True)
 
     sql = """
-        SELECT id_remision, fecha, tipo_remision, id_cliente, id_usuario
+        SELECT id_remision, fecha, tipo_remision, id_cliente, id_usuario, notas
         FROM remision
         WHERE id_remision = %s
     """
