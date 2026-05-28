@@ -38,7 +38,7 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
         print("Configuración")
 
     # Cuando el usuario cierra sesion vuelvo al login
-    def cerrar_sesion(e):
+    def cerrar_sesion():
         ir_a_main()
 
     # ---------------- BOTONES ----------------
@@ -115,6 +115,8 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
         elif e.key == "ArrowUp":
             index = (index - 1) % len(botones)
             await actualizar_focus()
+        elif e.key == "Escape":
+            cerrar_sesion()
 
     # Activo la deteccion de teclado en la pagina
     pagina.on_keyboard_event = posicion
