@@ -108,6 +108,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         f"${producto['subtotal']:,.2f}"
                     )
                 )
+                tabla_productos.rows[index].cells[7] = crear_celda_acciones(
+                    producto,
+                    index
+                )
                 actualizar_totales()
                 pagina.update()
 
@@ -116,6 +120,48 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         tabla_productos.rows[index].cells[2] = ft.DataCell(campo)
         campo.on_submit = guardar
         pagina.update()
+
+    def obtener_stock_restante(producto):
+        try:
+            return float(producto.get("stock", 0)) - float(producto.get("cantidad", 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def formatear_stock(stock):
+        if isinstance(stock, float) and stock.is_integer():
+            return str(int(stock))
+        return str(stock)
+
+    def crear_celda_acciones(producto, index, deshabilitado=False):
+        stock_restante = obtener_stock_restante(producto)
+        controles = []
+
+        if stock_restante < 0:
+            controles.append(
+                ft.Text(
+                    formatear_stock(stock_restante),
+                    color=ft.Colors.RED,
+                    weight="bold",
+                    size=12
+                )
+            )
+
+        controles.append(
+            ft.IconButton(
+                icon=ft.Icons.CLOSE,
+                icon_color=ft.Colors.RED,
+                on_click=lambda e, idx=index: eliminar_producto(idx),
+                disabled=deshabilitado
+            )
+        )
+
+        return ft.DataCell(
+            ft.Row(
+                controles,
+                spacing=4,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER
+            )
+        )
 
 
     def eliminar_producto(index):
@@ -168,13 +214,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         ),
 
                         # BOTON X
-                        ft.DataCell(
-                            ft.IconButton(
-                                icon=ft.Icons.CLOSE,
-                                icon_color=ft.Colors.RED,
-                                on_click=lambda e, idx=i: eliminar_producto(idx)
-                            )
-                        )
+                        crear_celda_acciones(p, i)
                     ]
                 )
             )
@@ -197,62 +237,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         cantidad = producto.get("cantidad", 1)
 
         # ---------------------------------------------
-        # VALIDAR SI YA EXISTE EN LA FACTURA
-        # ---------------------------------------------
-        for producto_existente in productos:
-            if producto_existente["id"] == producto["id"]:
-                nueva_cantidad = (
-                    producto_existente["cantidad"] + cantidad
-                )
-
-                # Actualizo cantidad
-                producto_existente["cantidad"] = nueva_cantidad
-
-                # Actualizo subtotal
-                producto_existente["subtotal"] = (
-                    float(nueva_cantidad) * float(producto_existente["precio"])
-                )
-
-                # Refresco tabla
-                tabla_productos.rows.clear()
-
-                for i, p in enumerate(productos):
-                    cantidad_texto = ventas_controller.formatear_cantidad(
-                        p["cantidad"]
-                    )
-                    tabla_productos.rows.append(
-                        ft.DataRow(
-                            cells=[
-                                ft.DataCell(ft.Text(str(p.get('id', '-')))),
-                                ft.DataCell(ft.Text(p.get('nombre', 'Sin nombre'))),
-                                ft.DataCell(
-                                    ft.TextButton(
-                                        content=ft.Text(cantidad_texto),
-                                        on_click=lambda e, idx=len(productos): editar_cantidad(idx - 1)
-                                    )
-                                ),
-                                ft.DataCell(ft.Text(str(p.get('unidad', 'UND')))),
-                                ft.DataCell(ft.Text(f"${p.get('precio', 0):,.2f}")),
-                                ft.DataCell(ft.Text(f"${p.get('subtotal', 0):,.2f}")),
-                                ft.DataCell(ft.Text(str(p.get('lugar', '-')))),
-                                ft.DataCell(
-                                    ft.IconButton(
-                                        icon=ft.Icons.CLOSE,
-                                        icon_color=ft.Colors.RED,
-                                        on_click=lambda e, idx=i: eliminar_producto(idx),
-                                        disabled=modo_consulta
-                                    )
-                                )
-                            ]
-                        )
-                    )
-
-                actualizar_totales()
-                tabla_productos.update()
-                return
-
-        # ---------------------------------------------
-        # SI NO EXISTE LO AGREGO NORMAL
+        # LO AGREGO NORMAL
         # ---------------------------------------------
 
         producto["subtotal"] = (
@@ -277,13 +262,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
                     ft.DataCell(ft.Text(f"${producto.get('subtotal', 0):,.2f}")),
                     ft.DataCell(ft.Text(str(producto.get('lugar', '-')))),
-                    ft.DataCell(
-                        ft.IconButton(
-                            icon=ft.Icons.CLOSE,
-                            icon_color=ft.Colors.RED,
-                            on_click=lambda e, idx=len(productos)-1: eliminar_producto(idx)
-                        )
-                    )
+                    crear_celda_acciones(producto, len(productos)-1)
                 ]
             )
         )
@@ -405,14 +384,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.DataCell(ft.Text(f"${producto['precio']:,.2f}")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
                     ft.DataCell(ft.Text(producto["lugar"])),
-                    ft.DataCell(
-                        ft.IconButton(
-                            icon=ft.Icons.CLOSE,
-                            icon_color=ft.Colors.RED,
-                            on_click=lambda e, idx=i: eliminar_producto(idx),
-                            disabled=True
-                        )
-                    )
+                    crear_celda_acciones(producto, i, deshabilitado=True)
                 ])
             )
 
