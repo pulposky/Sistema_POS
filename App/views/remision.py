@@ -96,21 +96,6 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         cantidad = producto.get("cantidad", 1)
 
         # ---------------------------------------------
-        # VALIDACION DE STOCK
-        # ---------------------------------------------
-        if cantidad > stock_actual:
-            snack = ft.SnackBar(
-                content=ft.Text(
-                    f"No hay suficiente stock.\nDisponible: {stock_actual}"
-                ),
-                bgcolor=ft.Colors.RED
-            )
-            pagina.overlay.append(snack)
-            snack.open = True
-            pagina.update()
-            return
-
-        # ---------------------------------------------
         # VALIDAR SI YA EXISTE EN LA FACTURA
         # ---------------------------------------------
         for producto_existente in productos:
@@ -119,18 +104,6 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     producto_existente["cantidad"] + cantidad
                 )
 
-                # Si supera el stock no deja agregar
-                if nueva_cantidad > stock_actual:
-                    snack = ft.SnackBar(
-                        content=ft.Text(
-                            f"Stock insuficiente.\nDisponible: {stock_actual}"
-                        ),
-                        bgcolor=ft.Colors.RED
-                    )
-                    pagina.overlay.append(snack)
-                    snack.open = True
-                    pagina.update()
-                    return
 
                 # Actualizo cantidad
                 producto_existente["cantidad"] = nueva_cantidad
@@ -143,7 +116,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 # Refresco tabla
                 tabla_productos.rows.clear()
 
-                for p in productos:
+                for i, p in enumerate(productos):
                     cantidad_texto = remision_controller.formatear_cantidad(
                         p["cantidad"]
                     )
@@ -152,11 +125,23 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             cells=[
                                 ft.DataCell(ft.Text(str(p.get('id', '-')))),
                                 ft.DataCell(ft.Text(p.get('nombre', 'Sin nombre'))),
-                                ft.DataCell(ft.Text(cantidad_texto)),
+                                ft.DataCell(
+                                    ft.TextButton(
+                                        content=ft.Text(cantidad_texto),
+                                        on_click=lambda e, idx=len(productos)-1: editar_cantidad(idx)
+                                    )
+                                ),
                                 ft.DataCell(ft.Text(str(p.get('unidad', 'UND')))),
                                 ft.DataCell(ft.Text(f"${p.get('precio', 0):,.2f}")),
                                 ft.DataCell(ft.Text(f"${p.get('subtotal', 0):,.2f}")),
-                                ft.DataCell(ft.Text(str(p.get('lugar', '-'))))
+                                ft.DataCell(ft.Text(str(p.get('lugar', '-')))),
+                                ft.DataCell(
+                                ft.IconButton(
+                                    icon=ft.Icons.CLOSE,
+                                    icon_color=ft.Colors.RED,
+                                    on_click=lambda e, idx=i: eliminar_producto(idx)
+                                )
+                            )
                             ]
                         )
                     )
@@ -183,11 +168,23 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 cells=[
                     ft.DataCell(ft.Text(str(producto.get('id', '-')))),
                     ft.DataCell(ft.Text(producto.get('nombre', 'Sin nombre'))),
-                    ft.DataCell(ft.Text(cantidad_texto)),
+                    ft.DataCell(
+                    ft.TextButton(
+                        content=ft.Text(cantidad_texto),
+                        on_click=lambda e, idx=productos.index(producto): editar_cantidad(idx)
+                    )
+                ),
                     ft.DataCell(ft.Text(str(producto.get('unidad', 'UND')))),
                     ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
                     ft.DataCell(ft.Text(f"${producto.get('subtotal', 0):,.2f}")),
-                    ft.DataCell(ft.Text(str(producto.get('lugar', '-'))))
+                    ft.DataCell(ft.Text(str(producto.get('lugar', '-')))),
+                    ft.DataCell(
+                    ft.IconButton(
+                        icon=ft.Icons.CLOSE,
+                        icon_color=ft.Colors.RED,
+                        on_click=lambda e, idx=-1: eliminar_producto(idx)
+                    )
+                )
                 ]
             )
         )
@@ -323,6 +320,104 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
 
 
+    def editar_cantidad(index):
+
+        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+            return
+
+        producto = productos[index]
+        campo = ft.TextField(
+            value=str(producto["cantidad"]),
+            autofocus=True,
+            width=120
+        )
+        def guardar(e):
+            try:
+                nueva_cantidad = float(campo.value)
+                producto["cantidad"] = nueva_cantidad
+                producto["subtotal"] = (
+                    nueva_cantidad * float(producto["precio"])
+                )
+                tabla_productos.rows[index].cells[2] = ft.DataCell(
+                    ft.TextButton(
+                        content=ft.Text(
+                            remision_controller.formatear_cantidad(
+                                nueva_cantidad
+                            )
+                        ),
+                        on_click=lambda e: editar_cantidad(index)
+                    )
+                )
+                tabla_productos.rows[index].cells[5] = ft.DataCell(
+                    ft.Text(
+                        f"${producto['subtotal']:,.2f}"
+                    )
+                )
+                actualizar_totales()
+                pagina.update()
+
+            except:
+                pass
+        tabla_productos.rows[index].cells[2] = ft.DataCell(campo)
+        campo.on_submit = guardar
+        pagina.update()
+
+    def eliminar_producto(index):
+
+        if modo_consulta:
+            return
+
+        productos.pop(index)
+        tabla_productos.rows.clear()
+
+        for i, p in enumerate(productos):
+            cantidad_texto = remision_controller.formatear_cantidad(
+                p["cantidad"]
+            )
+            tabla_productos.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(
+                            ft.Text(str(p.get("id", "-")))
+                        ),
+                        ft.DataCell(
+                            ft.Text(p.get("nombre", "Sin nombre"))
+                        ),
+                        ft.DataCell(
+                            ft.TextButton(
+                                content=ft.Text(cantidad_texto),
+                                on_click=lambda e, idx=i: editar_cantidad(idx)
+                            )
+                        ),
+                        ft.DataCell(
+                            ft.Text(str(p.get("unidad", "UND")))
+                        ),
+                        ft.DataCell(
+                            ft.Text(f"${p.get('precio', 0):,.2f}")
+                        ),
+                        ft.DataCell(
+                            ft.Text(f"${p.get('subtotal', 0):,.2f}")
+                        ),
+                        ft.DataCell(
+                            ft.Text(str(p.get('lugar', '-')))
+                        ),
+                        # BOTON X
+                        ft.DataCell(
+                            ft.IconButton(
+                                icon=ft.Icons.CLOSE,
+                                icon_color=ft.Colors.RED,
+                                on_click=lambda e, idx=i: eliminar_producto(idx)
+                            )
+                        )
+                    ]
+                )
+            )
+
+        actualizar_totales()
+
+        pagina.update()
+
+
     def limpiar_factura():
 
         nonlocal productos
@@ -356,30 +451,70 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         remision_actual = datos["remision"]
         cliente = datos["cliente"]
         productos = datos["productos"]
+
         tabla_productos.rows.clear()
-
-        for producto in productos:
-            cantidad_texto = remision_controller.formatear_cantidad(producto["cantidad"])
-            tabla_productos.rows.append(
-                ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(str(producto.get("id", "-")))),
-                    ft.DataCell(ft.Text(producto.get("nombre", "Sin nombre"))),
-                    ft.DataCell(ft.Text(cantidad_texto)),
-                    ft.DataCell(ft.Text(producto.get("unidad", "UND"))),
-                    ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
-                    ft.DataCell(ft.Text(f"${producto.get('subtotal', 0):,.2f}")),
-                    ft.DataCell(ft.Text(str(producto.get("lugar", "-"))))
-                ])
+        for i, producto in enumerate(productos):
+            cantidad_texto = remision_controller.formatear_cantidad(
+                producto["cantidad"]
             )
-
-        nombreCliente.value = f"{cliente['nombre']} - {cliente['rol']}" if cliente else "Sin cliente"
-        numeroFactura.value = f"Numero de remision: {id_remision:04d} - {remision_actual['tipo_remision']}"
+            tabla_productos.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(
+                            ft.Text(str(producto.get("id", "-")))
+                        ),
+                        ft.DataCell(
+                            ft.Text(producto.get("nombre", "Sin nombre"))
+                        ),
+                        ft.DataCell(
+                            ft.TextButton(
+                                content=ft.Text(cantidad_texto),
+                                on_click=lambda e, idx=i: editar_cantidad(idx)
+                            )
+                        ),
+                        ft.DataCell(
+                            ft.Text(producto.get("unidad", "UND"))
+                        ),
+                        ft.DataCell(
+                            ft.Text(
+                                f"${producto.get('precio', 0):,.2f}"
+                            )
+                        ),
+                        ft.DataCell(
+                            ft.Text(
+                                f"${producto.get('subtotal', 0):,.2f}"
+                            )
+                        ),
+                        ft.DataCell(
+                            ft.Text(str(producto.get("lugar", "-")))
+                        ),
+                        ft.DataCell(
+                            ft.IconButton(
+                                icon=ft.Icons.CLOSE,
+                                icon_color=ft.Colors.RED,
+                                on_click=lambda e, idx=i: eliminar_producto(idx),
+                                disabled=modo_consulta
+                            )
+                        )
+                    ]
+                )
+            )
+        nombreCliente.value = (
+            f"{cliente['nombre']} - {cliente['rol']}"
+            if cliente else "Sin cliente"
+        )
+        numeroFactura.value = (
+            f"Numero de remision: "
+            f"{id_remision:04d} - "
+            f"{remision_actual['tipo_remision']}"
+        )
         actualizar_totales()
+
         modo_consulta = True
         id_remision_actual = id_remision
         pagina.update()
         return True
-
+    
     def nueva_remision():
         nonlocal index_remision, modo_consulta
         remisiones.clear()
@@ -662,6 +797,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Precio")),
             ft.DataColumn(ft.Text("Subtotal")),
             ft.DataColumn(ft.Text("Empresa")),
+            ft.DataColumn(ft.Text("")), # Columna para el botón eliminar
         ],
         rows=[],
         border=ft.Border.all(1, ft.Colors.BLACK),
