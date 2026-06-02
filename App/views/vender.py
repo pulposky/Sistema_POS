@@ -312,7 +312,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     def facturar():
 
-        if modo_consulta:
+        if modo_consulta and usuario.get("rol", "").lower() != "admin":
             print("No se puede facturar en modo consulta")
             return
         if not productos:

@@ -1,7 +1,9 @@
 import os
 import sys
-import subprocess
+import textwrap
 from datetime import datetime
+
+import win32print
 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -13,6 +15,11 @@ from reportlab.platypus import (
 
 
 ANCHO_TICKET = 58 * mm
+MARGEN_TICKET = 5 * mm
+ANCHO_CONTENIDO = ANCHO_TICKET - (MARGEN_TICKET * 2)
+LINEA_TICKET = "-" * 28
+COLUMNAS_TERMICA = 32
+LINEA_TERMICA = "-" * COLUMNAS_TERMICA
 
 
 def _carpeta_facturas():
@@ -37,6 +44,26 @@ def _abrir_archivo(ruta):
         print(f"No se pudo abrir el PDF: {err}")
 
 
+def _buscar_impresora_xprinter(nombre_preferido="XP-58C"):
+    try:
+        impresoras = win32print.EnumPrinters(
+            win32print.PRINTER_ENUM_LOCAL
+            | win32print.PRINTER_ENUM_CONNECTIONS
+        )
+    except Exception:
+        return nombre_preferido
+
+    nombres = [impresora[2] for impresora in impresoras]
+    if nombre_preferido in nombres:
+        return nombre_preferido
+
+    for nombre in nombres:
+        if "XP-58" in nombre.upper() or "XPRINTER" in nombre.upper():
+            return nombre
+
+    return nombre_preferido
+
+
 def _nombre_usuario(usuario):
     # Obtengo el nombre del usuario aunque llegue como diccionario o texto
     if not usuario:
@@ -58,6 +85,164 @@ def _moneda(valor):
         return f"${float(valor):,.0f}"
     except Exception:
         return "$0"
+
+
+def _cantidad_texto(cantidad):
+    return (
+        str(int(cantidad))
+        if isinstance(cantidad, (int, float)) and cantidad == int(cantidad)
+        else str(cantidad)
+    )
+
+
+def _envolver(texto, ancho=COLUMNAS_TERMICA):
+    return textwrap.wrap(str(texto), width=ancho) or [""]
+
+
+def _campo_ticket(etiqueta, valor):
+    return _envolver(f"{etiqueta}: {valor}")
+
+
+def _dinero_ticket(etiqueta, valor):
+    etiqueta = str(etiqueta)
+    monto = _moneda(valor)
+    espacio = COLUMNAS_TERMICA - len(etiqueta) - len(monto)
+
+    if espacio < 1:
+        return [etiqueta[:COLUMNAS_TERMICA], monto.rjust(COLUMNAS_TERMICA)]
+
+    return [f"{etiqueta}{' ' * espacio}{monto}"]
+
+
+def _centrar_ticket(texto):
+    return str(texto).center(COLUMNAS_TERMICA)
+
+
+def _crear_texto_ticket(
+    id_factura,
+    fecha_actual,
+    etiqueta_documento,
+    titulo_documento,
+    nombre_cliente,
+    doc_cliente,
+    nombre_usuario,
+    metodo_pago_txt,
+    productos,
+    total,
+    dinero_recibido,
+    cambio,
+    mostrar_precios,
+    es_mixto,
+    efectivo=None,
+    transferencia=None,
+):
+    lineas = [
+        _centrar_ticket("SENA"),
+        _centrar_ticket(titulo_documento),
+        _centrar_ticket("Sistema POS - SENAEMPRESA"),
+        LINEA_TERMICA,
+    ]
+
+    lineas.extend(_campo_ticket(etiqueta_documento, f"{id_factura:04d}"))
+    lineas.extend(_campo_ticket("Fecha", fecha_actual))
+    lineas.extend(_campo_ticket("Cliente", nombre_cliente))
+    lineas.extend(_campo_ticket("Documento", doc_cliente))
+    lineas.extend(_campo_ticket("Atendido por", nombre_usuario))
+
+    if mostrar_precios:
+        lineas.extend(_campo_ticket("Pago", metodo_pago_txt))
+    elif metodo_pago_txt != "-":
+        lineas.extend(_campo_ticket("Motivo", metodo_pago_txt))
+
+    if mostrar_precios and es_mixto:
+        lineas.extend(_dinero_ticket("Efectivo:", efectivo or 0))
+        lineas.extend(_dinero_ticket("Transferencia:", transferencia or 0))
+
+    lineas.extend([LINEA_TERMICA, "PRODUCTOS"])
+
+    for p in productos:
+        nombre = str(p.get("nombre", "-"))
+        cantidad = p.get("cantidad", 1)
+        unidad = str(p.get("unidad", "UND"))
+        precio = p.get("precio", 0)
+        subtotal = p.get("subtotal", 0)
+        empresa = str(p.get("lugar", "-"))
+
+        lineas.append("")
+        lineas.extend(_envolver(nombre))
+        lineas.extend(_campo_ticket("Cod", p.get("id", "-")))
+
+        if mostrar_precios:
+            cantidad_linea = f"{_cantidad_texto(cantidad)} {unidad} x {_moneda(precio)}"
+            lineas.extend(_envolver(cantidad_linea))
+        else:
+            lineas.extend(_campo_ticket("Cantidad", f"{_cantidad_texto(cantidad)} {unidad}"))
+
+        lineas.extend(_campo_ticket("Empresa", empresa))
+
+        if mostrar_precios:
+            lineas.extend(_dinero_ticket("Subtotal:", subtotal))
+
+    if mostrar_precios:
+        desglose = {}
+        for p in productos:
+            empresa = str(p.get("lugar", "SenaEmpresa"))
+            desglose[empresa] = desglose.get(empresa, 0) + p.get("subtotal", 0)
+
+        lineas.extend([LINEA_TERMICA, "DESGLOSE POR EMPRESA"])
+        for empresa, valor in desglose.items():
+            lineas.extend(_dinero_ticket(f"{empresa[:16]}:", valor))
+
+        subtotal_calc = sum(p.get("subtotal", 0) for p in productos)
+        lineas.extend([LINEA_TERMICA])
+        lineas.extend(_dinero_ticket("Subtotal:", subtotal_calc))
+        lineas.extend(_dinero_ticket("Descuento:", 0))
+        lineas.extend(_dinero_ticket("TOTAL:", total))
+
+        if es_mixto:
+            lineas.extend(_dinero_ticket("Efectivo:", efectivo or 0))
+            lineas.extend(_dinero_ticket("Transferencia:", transferencia or 0))
+
+        lineas.extend(_dinero_ticket("Recibido:", dinero_recibido))
+        lineas.extend(_dinero_ticket("Cambio:", cambio))
+
+    mensaje_final = "Gracias por su compra" if mostrar_precios else "Documento de remision"
+    lineas.extend([
+        LINEA_TERMICA,
+        _centrar_ticket(mensaje_final),
+        _centrar_ticket("Numero de atencion:"),
+        _centrar_ticket("3125290330"),
+        _centrar_ticket("HORARIO 8:00AM-3:30PM"),
+        "",
+        "",
+        "",
+    ])
+
+    return "\r\n".join(lineas)
+
+
+def imprimir_ticket_termico(texto_ticket, nombre_impresora=None):
+    impresora = nombre_impresora or _buscar_impresora_xprinter()
+    datos = b"\x1b@\x1bt\x02" + texto_ticket.encode("cp850", errors="replace")
+
+    try:
+        manejador = win32print.OpenPrinter(impresora)
+    except Exception as err:
+        print(f"No se pudo abrir la impresora {impresora}: {err}")
+        return False
+
+    try:
+        win32print.StartDocPrinter(manejador, 1, ("Factura POS", None, "RAW"))
+        win32print.StartPagePrinter(manejador)
+        win32print.WritePrinter(manejador, datos)
+        win32print.EndPagePrinter(manejador)
+        win32print.EndDocPrinter(manejador)
+        return True
+    except Exception as err:
+        print(f"Error al imprimir ticket en {impresora}: {err}")
+        return False
+    finally:
+        win32print.ClosePrinter(manejador)
 
 
 def generar_factura_pdf(
@@ -87,8 +272,8 @@ def generar_factura_pdf(
         doc = SimpleDocTemplate(
             ruta_pdf,
             pagesize=(ANCHO_TICKET, alto_ticket),
-            leftMargin=3 * mm,
-            rightMargin=3 * mm,
+            leftMargin=MARGEN_TICKET,
+            rightMargin=MARGEN_TICKET,
             topMargin=4 * mm,
             bottomMargin=4 * mm,
         )
@@ -101,8 +286,8 @@ def generar_factura_pdf(
             "titulo_ticket",
             parent=estilos["Title"],
             fontName="Helvetica-Bold",
-            fontSize=9,
-            leading=10,
+            fontSize=8,
+            leading=9,
             alignment=1,
             spaceAfter=2,
         )
@@ -111,8 +296,8 @@ def generar_factura_pdf(
             "centro_ticket",
             parent=estilos["Normal"],
             fontName="Helvetica",
-            fontSize=7,
-            leading=8,
+            fontSize=6,
+            leading=7,
             alignment=1,
         )
 
@@ -120,8 +305,8 @@ def generar_factura_pdf(
             "normal_ticket",
             parent=estilos["Normal"],
             fontName="Helvetica",
-            fontSize=7,
-            leading=8,
+            fontSize=6,
+            leading=7,
         )
 
         estilo_bold = ParagraphStyle(
@@ -144,7 +329,7 @@ def generar_factura_pdf(
 
         elementos.append(Paragraph(titulo_documento, estilo_titulo))
         elementos.append(Paragraph("Sistema POS - SENAEMPRESA", estilo_centro))
-        elementos.append(Paragraph("-" * 32, estilo_centro))
+        elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M %p")
 
@@ -198,7 +383,7 @@ def generar_factura_pdf(
             elementos.append(Paragraph(f"<b>Efectivo:</b> {_moneda(efectivo_val)}", estilo_normal))
             elementos.append(Paragraph(f"<b>Transferencia:</b> {_moneda(transferencia_val)}", estilo_normal))
 
-        elementos.append(Paragraph("-" * 32, estilo_centro))
+        elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
         elementos.append(Paragraph("PRODUCTOS", estilo_bold))
 
         # ---------------- PRODUCTOS ----------------
@@ -213,11 +398,7 @@ def generar_factura_pdf(
             subtotal = p.get("subtotal", 0)
             empresa = str(p.get("lugar", "-"))
 
-            cantidad_txt = (
-                str(int(cantidad))
-                if isinstance(cantidad, (int, float)) and cantidad == int(cantidad)
-                else str(cantidad)
-            )
+            cantidad_txt = _cantidad_texto(cantidad)
 
             elementos.append(Spacer(1, 1 * mm))
             elementos.append(Paragraph(f"<b>{nombre}</b>", estilo_normal))
@@ -231,18 +412,20 @@ def generar_factura_pdf(
             if mostrar_precios:
                 fila_subtotal = Table(
                     [["Subtotal", _moneda(subtotal)]],
-                    colWidths=[25 * mm, 24 * mm],
+                    colWidths=[18 * mm, ANCHO_CONTENIDO - (18 * mm)],
                 )
                 fila_subtotal.setStyle(TableStyle([
                     ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6),
                     ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                     ("TOPPADDING", (0, 0), (-1, -1), 1),
                 ]))
                 elementos.append(fila_subtotal)
 
-        elementos.append(Paragraph("-" * 32, estilo_centro))
+        elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 
         # ---------------- DESGLOSE POR EMPRESA ----------------
 
@@ -259,17 +442,19 @@ def generar_factura_pdf(
             for empresa, valor in desglose.items():
                 tabla_empresa = Table(
                     [[empresa[:18], _moneda(valor)]],
-                    colWidths=[28 * mm, 21 * mm],
+                    colWidths=[21 * mm, ANCHO_CONTENIDO - (21 * mm)],
                 )
                 tabla_empresa.setStyle(TableStyle([
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6),
                     ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                     ("TOPPADDING", (0, 0), (-1, -1), 1),
                 ]))
                 elementos.append(tabla_empresa)
 
-            elementos.append(Paragraph("-" * 32, estilo_centro))
+            elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 
         # ---------------- TOTALES ----------------
 
@@ -293,15 +478,17 @@ def generar_factura_pdf(
 
             tabla_totales = Table(
                 totales,
-                colWidths=[27 * mm, 22 * mm],
+                colWidths=[18 * mm, ANCHO_CONTENIDO - (18 * mm)],
             )
             tabla_totales.setStyle(TableStyle([
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("FONTSIZE", (0, 0), (-1, -1), 6),
                 ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 2), (-1, 2), 10),
+                ("FONTSIZE", (0, 2), (-1, 2), 8),
                 ("ALIGN", (1, 0), (1, -1), "RIGHT"),
                 ("LINEABOVE", (0, 2), (-1, 2), 0.7, colors.black),
                 ("LINEBELOW", (0, 2), (-1, 2), 0.7, colors.black),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 2),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ]))
@@ -318,7 +505,26 @@ def generar_factura_pdf(
         doc.build(elementos)
 
         if abrir:
-            _abrir_archivo(ruta_pdf)
+            texto_ticket = _crear_texto_ticket(
+                id_factura=id_factura,
+                fecha_actual=fecha_actual,
+                etiqueta_documento=etiqueta_documento,
+                titulo_documento=titulo_documento,
+                nombre_cliente=nombre_cliente,
+                doc_cliente=doc_cliente,
+                nombre_usuario=nombre_usuario,
+                metodo_pago_txt=metodo_pago_txt,
+                productos=productos,
+                total=total,
+                dinero_recibido=dinero_recibido,
+                cambio=cambio,
+                mostrar_precios=mostrar_precios,
+                es_mixto=es_mixto,
+                efectivo=efectivo,
+                transferencia=transferencia,
+            )
+            if not imprimir_ticket_termico(texto_ticket):
+                _abrir_archivo(ruta_pdf)
 
         return ruta_pdf
 
@@ -327,3 +533,16 @@ def generar_factura_pdf(
         import traceback
         traceback.print_exc()
         return None
+
+
+def imprimir_factura(ruta_pdf, nombre_impresora=None):
+    """
+    Mantiene compatibilidad con llamadas antiguas.
+    La impresion principal ahora se hace como ticket termico RAW.
+    """
+    if not os.path.exists(ruta_pdf):
+        print(f"No se encontró el archivo: {ruta_pdf}")
+        return False
+
+    _abrir_archivo(ruta_pdf)
+    return True

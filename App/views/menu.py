@@ -3,7 +3,7 @@ import flet as ft
 # =========================================================
 # MENU DE MODULOS
 # =========================================================
-def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras): 
+def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras, ir_a_inventario): 
 
     # Limpio la pantalla
     pagina.clean()
@@ -30,6 +30,9 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     def abrir_remision(e):
         ir_a_remision(usuario)
+
+    def abrir_inventario(e):
+        ir_a_inventario(usuario)
 
     def usuarios(e):
         print("Usuarios")
@@ -72,15 +75,10 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
                     shape=ft.RoundedRectangleBorder(radius=10),
                     text_style=ft.TextStyle(size=15, weight="bold")
                 )),
-        ft.Button("👤 Usuarios",
-                on_click=usuarios,
-                width=250, height=40,
-                style=ft.ButtonStyle(
-                    shape=ft.RoundedRectangleBorder(radius=10),
-                    text_style=ft.TextStyle(size=15, weight="bold")
-                )),
-        ft.Button("⚙️ Configuración",
-                on_click=configuracion, width=250, height=40,
+        ft.Button("📦 Inventario",
+                on_click=abrir_inventario,
+                width=250,
+                height=40,
                 style=ft.ButtonStyle(
                     shape=ft.RoundedRectangleBorder(radius=10),
                     text_style=ft.TextStyle(size=15, weight="bold")

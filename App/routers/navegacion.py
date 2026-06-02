@@ -4,6 +4,7 @@ from views.menu import menu_view
 from views.vender import vender
 from views.remision import remision
 from views.comprar import compras_view
+from views.inventario import inventario
 
 def configurar_rutas(pagina):
     # -------- INICIO --------
@@ -27,7 +28,8 @@ def configurar_rutas(pagina):
             ir_a_vender,
             ir_a_remision,
             usuario,
-            ir_a_compras
+            ir_a_compras,
+            ir_a_inventario
         )
 
     # -------- VENDER --------
@@ -50,6 +52,14 @@ def configurar_rutas(pagina):
     
     def ir_a_compras(usuario):
         compras_view(
+            pagina,
+            ir_a_inicio,
+            ir_a_menu,
+            usuario
+        )
+
+    def ir_a_inventario(usuario):
+        inventario(
             pagina,
             ir_a_inicio,
             ir_a_menu,
