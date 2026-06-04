@@ -7,7 +7,7 @@ from models.remisionesModel import (
     eliminar_remision,
 )
 from models.ventasModel import obtener_cliente_por_id, obtener_producto_por_id
-from utils.generarFactura import generar_factura_pdf
+from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 
 
 # Guardo aqui las opciones para no repetirlas en la vista.
@@ -110,6 +110,31 @@ def cargar_remision(id_remision):
         "cliente": cliente,
         "productos": productos,
     }
+
+
+def imprimir_remision_consultada(id_remision, usuario):
+    datos = cargar_remision(id_remision)
+    if not datos:
+        return None
+
+    remision = datos["remision"]
+
+    if imprimir_factura_datos(
+        id_factura=id_remision,
+        cliente=datos["cliente"],
+        usuario=usuario,
+        productos=datos["productos"],
+        total=0,
+        metodo_pago=remision.get("tipo_remision", "REMISION"),
+        dinero_recibido=0,
+        cambio=0,
+        efectivo=0,
+        transferencia=0,
+        titulo_documento="REMISION",
+        mostrar_precios=False,
+    ):
+        return True
+    return None
 
 
 # Listo todas las remisiones para consultar con F6 y F7.

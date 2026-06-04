@@ -349,6 +349,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         numeroFactura.value = "Número de factura: Nueva"
         numeroFactura.color = ft.Colors.BLACK
+        btn_imprimir_consulta.visible = False
 
         actualizar_totales()
 
@@ -403,8 +404,24 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         actualizar_totales()
         modo_consulta = True
         id_factura_actual = id_venta
+        btn_imprimir_consulta.visible = True
         pagina.update()
         return True
+
+    def imprimir_factura_consultada():
+        if not modo_consulta or id_factura_actual is None:
+            print("Primero consulta una factura para imprimirla")
+            return
+
+        ruta_pdf = ventas_controller.imprimir_factura_consultada(
+            id_factura_actual,
+            usuario
+        )
+        if not ruta_pdf:
+            print("No se pudo imprimir la factura consultada")
+            return
+
+        print(f"Factura {id_factura_actual} enviada a imprimir")
 
     def nueva_factura():
         nonlocal index_factura, modo_consulta
@@ -676,6 +693,20 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    btn_imprimir_consulta = ft.Button(
+        "Imprimir consulta",
+        on_click=lambda _: imprimir_factura_consultada(),
+        width=200,
+        height=40,
+        visible=False,
+        bgcolor=ft.Colors.BLUE,
+        color=ft.Colors.WHITE,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            text_style=ft.TextStyle(size=15, weight="bold")
+        )
+    )
+
     # Boton para borrar factura
     btn_borrarFactura = ft.Button(
         "Borrar [F5]",
@@ -808,6 +839,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
                 ft.Row(
                     btn_consultar,
+                    spacing=10,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                ft.Row(
+                    btn_imprimir_consulta,
                     spacing=10,
                     alignment=ft.MainAxisAlignment.CENTER,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER

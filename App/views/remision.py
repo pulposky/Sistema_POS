@@ -451,6 +451,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         modo_consulta = False
         id_remision_actual = None
+        btn_imprimir_consulta.visible = False
 
         pagina.update()
 
@@ -528,9 +529,26 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         modo_consulta = True
         id_remision_actual = id_remision
+        btn_imprimir_consulta.visible = True
         pagina.update()
         return True
     
+    def imprimir_remision_consultada():
+        if not modo_consulta or id_remision_actual is None:
+            print("Primero consulta una remision para imprimirla")
+            return
+
+        resultado = remision_controller.imprimir_remision_consultada(
+            id_remision_actual,
+            usuario
+        )
+
+        if not resultado:
+            print("No se pudo imprimir la remision consultada")
+            return
+
+        print(f"Remision {id_remision_actual} enviada a imprimir")
+
     def nueva_remision():
         nonlocal index_remision, modo_consulta
         remisiones.clear()
@@ -787,6 +805,20 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    btn_imprimir_consulta = ft.Button(
+        "Imprimir consulta",
+        on_click=lambda _: imprimir_remision_consultada(),
+        width=200,
+        height=40,
+        visible=False,
+        bgcolor=ft.Colors.BLUE,
+        color=ft.Colors.WHITE,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            text_style=ft.TextStyle(size=15, weight="bold")
+        )
+    )
+
     # Boton para borrar remision
     btn_borrarFactura = ft.Button(
         "Borrar [F5]",
@@ -923,6 +955,12 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
                 ft.Row(
                     btn_consultar,
+                    spacing=10,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                ft.Row(
+                    btn_imprimir_consulta,
                     spacing=10,
                     alignment=ft.MainAxisAlignment.CENTER,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER

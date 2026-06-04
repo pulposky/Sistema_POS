@@ -204,6 +204,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nombreProveedor.value = ""
         numeroCompra.value = "Número de compra: Nueva"
         numeroCompra.color = ft.Colors.BLACK
+        btn_imprimir_consulta.visible = False
         actualizar_totales()
         pagina.update()
 
@@ -260,8 +261,25 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         actualizar_totales()
         modo_consulta = True
         id_compra_actual = id_compra
+        btn_imprimir_consulta.visible = True
         pagina.update()
         return True
+
+    def imprimir_compra_consultada():
+        if not modo_consulta or id_compra_actual is None:
+            print("Primero consulta una compra para imprimirla")
+            return
+
+        resultado = compras_controller.imprimir_compra_consultada(
+            id_compra_actual,
+            usuario
+        )
+
+        if not resultado:
+            print("No se pudo imprimir la compra consultada")
+            return
+
+        print(f"Compra {id_compra_actual} enviada a imprimir")
 
     def nueva_compra():
         nonlocal compras, index_compra, modo_consulta
@@ -480,6 +498,20 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    btn_imprimir_consulta = ft.Button(
+        "Imprimir consulta",
+        on_click=lambda _: imprimir_compra_consultada(),
+        width=200,
+        height=40,
+        visible=False,
+        bgcolor=ft.Colors.BLUE,
+        color=ft.Colors.WHITE,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            text_style=ft.TextStyle(size=15, weight="bold")
+        )
+    )
+
     btn_borrar_compra = ft.Button(
         "Anular [F5]",
         on_click=lambda _: borrar_compra_actual(),
@@ -544,6 +576,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 total,
                 ft.Row([btn_confirmar], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Row([btn_consultar], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Row([btn_imprimir_consulta], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Row([btn_borrar_compra], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER)
             ],
             spacing=20

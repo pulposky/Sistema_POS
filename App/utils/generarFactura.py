@@ -22,6 +22,20 @@ COLUMNAS_TERMICA = 32
 LINEA_TERMICA = "-" * COLUMNAS_TERMICA
 
 
+def _ruta_recurso(ruta_relativa):
+    base_app = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ruta_app = os.path.join(base_app, ruta_relativa)
+    if os.path.exists(ruta_app):
+        return ruta_app
+
+    base_proyecto = os.path.dirname(base_app)
+    ruta_proyecto = os.path.join(base_proyecto, ruta_relativa)
+    if os.path.exists(ruta_proyecto):
+        return ruta_proyecto
+
+    return ruta_relativa
+
+
 def _carpeta_facturas():
     # Carpeta donde se guardan todos los PDF generados por el sistema
     base = os.path.join(
@@ -169,19 +183,15 @@ def _crear_texto_ticket(
         empresa = str(p.get("lugar", "-"))
 
         lineas.append("")
-        lineas.extend(_envolver(nombre))
-        lineas.extend(_campo_ticket("Cod", p.get("id", "-")))
+        lineas.extend(_envolver(nombre) + _campo_ticket("Cod", p.get("id", "-")))
 
         if mostrar_precios:
-            cantidad_linea = f"{_cantidad_texto(cantidad)} {unidad} x {_moneda(precio)}"
+            cantidad_linea = f"{_cantidad_texto(cantidad)} {unidad} x {_moneda(precio)} = {_moneda(subtotal)}"
             lineas.extend(_envolver(cantidad_linea))
         else:
             lineas.extend(_campo_ticket("Cantidad", f"{_cantidad_texto(cantidad)} {unidad}"))
 
         lineas.extend(_campo_ticket("Empresa", empresa))
-
-        if mostrar_precios:
-            lineas.extend(_dinero_ticket("Subtotal:", subtotal))
 
     if mostrar_precios:
         desglose = {}
@@ -243,6 +253,63 @@ def imprimir_ticket_termico(texto_ticket, nombre_impresora=None):
         return False
     finally:
         win32print.ClosePrinter(manejador)
+
+
+def imprimir_factura_datos(
+    id_factura,
+    cliente,
+    usuario,
+    productos,
+    total,
+    metodo_pago,
+    dinero_recibido,
+    cambio,
+    nombre_impresora=None,
+    efectivo=None,
+    transferencia=None,
+    titulo_documento="FACTURA DE VENTA",
+    mostrar_precios=True,
+):
+    metodo_pago_txt = str(metodo_pago) if metodo_pago is not None else "-"
+    if isinstance(metodo_pago, dict):
+        if efectivo is None:
+            efectivo = metodo_pago.get("efectivo")
+        if transferencia is None:
+            transferencia = metodo_pago.get("transferencia")
+        metodo_pago_txt = metodo_pago.get("tipo", "Mixto")
+
+    es_mixto = "mixto" in metodo_pago_txt.lower()
+
+    nombre_cliente = "Consumidor final"
+    doc_cliente = "-"
+    if cliente:
+        nombre_cliente = cliente.get("nombre", "Consumidor final")
+        doc_cliente = (
+            cliente.get("documento")
+            or cliente.get("cedula")
+            or cliente.get("id_cliente")
+            or "-"
+        )
+
+    texto_ticket = _crear_texto_ticket(
+        id_factura=id_factura,
+        fecha_actual=datetime.now().strftime("%d/%m/%Y %I:%M %p"),
+        etiqueta_documento="Remision" if "remision" in titulo_documento.lower() else "Factura",
+        titulo_documento=titulo_documento,
+        nombre_cliente=nombre_cliente,
+        doc_cliente=doc_cliente,
+        nombre_usuario=_nombre_usuario(usuario),
+        metodo_pago_txt=metodo_pago_txt,
+        productos=productos,
+        total=total,
+        dinero_recibido=dinero_recibido,
+        cambio=cambio,
+        mostrar_precios=mostrar_precios,
+        es_mixto=es_mixto,
+        efectivo=efectivo,
+        transferencia=transferencia,
+    )
+    return imprimir_ticket_termico(texto_ticket, nombre_impresora)
 
 
 def generar_factura_pdf(
@@ -320,9 +387,10 @@ def generar_factura_pdf(
         # ---------------- ENCABEZADO ----------------
 
         # Logo pequeño
-        if os.path.exists(logo_path):
+        logo_resuelto = _ruta_recurso(logo_path)
+        if os.path.exists(logo_resuelto):
             try:
-                elementos.append(Image(logo_path, width=18 * mm, height=18 * mm, hAlign="CENTER"))
+                elementos.append(Image(logo_resuelto, width=18 * mm, height=18 * mm, hAlign="CENTER"))
                 elementos.append(Spacer(1, 2 * mm))
             except Exception:
                 pass
@@ -401,29 +469,13 @@ def generar_factura_pdf(
             cantidad_txt = _cantidad_texto(cantidad)
 
             elementos.append(Spacer(1, 1 * mm))
-            elementos.append(Paragraph(f"<b>{nombre}</b>", estilo_normal))
-            elementos.append(Paragraph(f"Cod: {p.get('id', '-')}", estilo_normal))
+            elementos.append(Paragraph(f"<b>{nombre}</b> Cod: {p.get('id', '-')}", estilo_normal))
             if mostrar_precios:
-                elementos.append(Paragraph(f"{cantidad_txt} {unidad} x {_moneda(precio)}", estilo_normal))
+                elementos.append(Paragraph(f"{cantidad_txt} {unidad} x {_moneda(precio)} = {_moneda(subtotal)}", estilo_normal))
             else:
                 elementos.append(Paragraph(f"Cantidad: {cantidad_txt} {unidad}", estilo_normal))
             elementos.append(Paragraph(f"Empresa: {empresa}", estilo_normal))
 
-            if mostrar_precios:
-                fila_subtotal = Table(
-                    [["Subtotal", _moneda(subtotal)]],
-                    colWidths=[18 * mm, ANCHO_CONTENIDO - (18 * mm)],
-                )
-                fila_subtotal.setStyle(TableStyle([
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 6),
-                    ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-                    ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ]))
-                elementos.append(fila_subtotal)
 
         elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 

@@ -8,7 +8,7 @@ from models.ventasModel import (
     eliminar_factura,
     guardar_factura,
 )
-from utils.generarFactura import generar_factura_pdf
+from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 
 
 # ---------------------------------------------------
@@ -139,6 +139,29 @@ def cargar_factura(id_venta):
         "cliente": cliente,
         "productos": productos,
     }
+
+
+def imprimir_factura_consultada(id_venta, usuario):
+    datos = cargar_factura(id_venta)
+    if not datos:
+        return None
+
+    factura = datos["factura"]
+
+    if imprimir_factura_datos(
+        id_factura=id_venta,
+        cliente=datos["cliente"],
+        usuario=usuario,
+        productos=datos["productos"],
+        total=factura.get("total", 0),
+        metodo_pago=factura.get("metodo_pago", ""),
+        dinero_recibido=factura.get("dinero_recibido", 0),
+        cambio=factura.get("cambio", 0),
+        titulo_documento="FACTURA DE VENTA",
+        mostrar_precios=True,
+    ):
+        return True
+    return None
 
 
 # ---------------------------------------------------
