@@ -36,8 +36,8 @@ def _ruta_recurso(ruta_relativa):
     return ruta_relativa
 
 
-def _carpeta_facturas():
-    # Carpeta donde se guardan todos los PDF generados por el sistema
+def _carpeta_facturas(tipo=None):
+    # Carpeta base donde se guardan los PDF generados por el sistema
     base = os.path.join(
         os.path.expanduser("~"),
         "OneDrive",
@@ -45,8 +45,20 @@ def _carpeta_facturas():
         "Proyecto",
         "Facturas"
     )
-    os.makedirs(base, exist_ok=True)
-    return base
+
+    subcarpeta = ""
+    if tipo:
+        tipo = tipo.lower()
+        if "compra" in tipo:
+            subcarpeta = "compras"
+        elif "remision" in tipo:
+            subcarpeta = "remisiones"
+        else:
+            subcarpeta = "ventas"
+
+    carpeta = os.path.join(base, subcarpeta) if subcarpeta else base
+    os.makedirs(carpeta, exist_ok=True)
+    return carpeta
 
 
 def _abrir_archivo(ruta):
@@ -149,13 +161,17 @@ def _crear_texto_ticket(
     es_mixto,
     efectivo=None,
     transferencia=None,
+    es_copia=False,
 ):
     lineas = [
-        _centrar_ticket("asset:assets/Logo_sena.png"),
         _centrar_ticket(titulo_documento),
+    ]
+    if es_copia:
+        lineas.append(_centrar_ticket("COPIA"))
+    lineas.extend([
         _centrar_ticket("Sistema POS - SENAEMPRESA"),
         LINEA_TERMICA,
-    ]
+    ])
 
     lineas.extend(_campo_ticket(etiqueta_documento, f"{id_factura:04d}"))
     lineas.extend(_campo_ticket("Fecha", fecha_actual))
@@ -269,6 +285,8 @@ def imprimir_factura_datos(
     transferencia=None,
     titulo_documento="FACTURA DE VENTA",
     mostrar_precios=True,
+    fecha_actual=None,
+    es_copia=False,
 ):
     metodo_pago_txt = str(metodo_pago) if metodo_pago is not None else "-"
     if isinstance(metodo_pago, dict):
@@ -279,6 +297,14 @@ def imprimir_factura_datos(
         metodo_pago_txt = metodo_pago.get("tipo", "Mixto")
 
     es_mixto = "mixto" in metodo_pago_txt.lower()
+
+    if fecha_actual:
+        try:
+            fecha_actual = datetime.strptime(str(fecha_actual), "%Y-%m-%d %H:%M:%S").strftime("%d/%m/%Y %I:%M %p")
+        except Exception:
+            fecha_actual = str(fecha_actual)
+    else:
+        fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M %p")
 
     nombre_cliente = "Consumidor final"
     doc_cliente = "-"
@@ -293,7 +319,7 @@ def imprimir_factura_datos(
 
     texto_ticket = _crear_texto_ticket(
         id_factura=id_factura,
-        fecha_actual=datetime.now().strftime("%d/%m/%Y %I:%M %p"),
+        fecha_actual=fecha_actual,
         etiqueta_documento="Remision" if "remision" in titulo_documento.lower() else "Factura",
         titulo_documento=titulo_documento,
         nombre_cliente=nombre_cliente,
@@ -308,6 +334,7 @@ def imprimir_factura_datos(
         es_mixto=es_mixto,
         efectivo=efectivo,
         transferencia=transferencia,
+        es_copia=es_copia,
     )
     return imprimir_ticket_termico(texto_ticket, nombre_impresora)
 
@@ -330,7 +357,7 @@ def generar_factura_pdf(
     mostrar_precios=True,
 ):
     try:
-        carpeta = _carpeta_facturas()
+        carpeta = _carpeta_facturas(prefijo_archivo)
         ruta_pdf = os.path.join(carpeta, f"{prefijo_archivo}_{id_factura:04d}.pdf")
 
         # Alto dinamico aproximado segun cantidad de productos

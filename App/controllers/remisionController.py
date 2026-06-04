@@ -132,6 +132,8 @@ def imprimir_remision_consultada(id_remision, usuario):
         transferencia=0,
         titulo_documento="REMISION",
         mostrar_precios=False,
+        fecha_actual=remision.get("fecha"),
+        es_copia=True,
     ):
         return True
     return None

@@ -159,6 +159,8 @@ def imprimir_factura_consultada(id_venta, usuario):
         cambio=factura.get("cambio", 0),
         titulo_documento="FACTURA DE VENTA",
         mostrar_precios=True,
+        fecha_actual=factura.get("fecha"),
+        es_copia=True,
     ):
         return True
     return None

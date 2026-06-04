@@ -89,6 +89,8 @@ def imprimir_compra_consultada(id_compra, usuario):
         transferencia=0,
         titulo_documento="FACTURA DE COMPRA",
         mostrar_precios=True,
+        fecha_actual=compra.get("fecha"),
+        es_copia=True,
     ):
         return True
     return None
