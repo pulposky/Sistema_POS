@@ -69,6 +69,17 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         visible=False
     )
 
+    nota_remision = ft.Container(
+        visible=False,
+        content=ft.Column(
+            [
+                ft.Text("Nota", weight="bold"),
+                ft.Text("", size=13)
+            ],
+            spacing=5
+        )
+    )
+
     # ---------------- FUNCIONES ----------------
 
     # Actualizo el resumen de la remision en pantalla
@@ -433,6 +444,8 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nombreCliente.value = ""
 
         numeroFactura.value = "Numero de remision: Nueva"
+        nota_remision.visible = False
+        nota_remision.content.controls[1].value = ""
 
         actualizar_totales()
 
@@ -508,6 +521,9 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             f"{id_remision:04d} - "
             f"{remision_actual['tipo_remision']}"
         )
+        notas = (remision_actual.get("notas") or "").strip()
+        nota_remision.visible = bool(notas)
+        nota_remision.content.controls[1].value = notas
         actualizar_totales()
 
         modo_consulta = True
@@ -890,6 +906,10 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
                 subtotal,
                 descuento,
+
+                ft.Divider(),
+
+                nota_remision,
 
                 ft.Divider(),
 
