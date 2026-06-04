@@ -151,7 +151,7 @@ def _crear_texto_ticket(
     transferencia=None,
 ):
     lineas = [
-        _centrar_ticket("SENA"),
+        _centrar_ticket("asset:assets/Logo_sena.png"),
         _centrar_ticket(titulo_documento),
         _centrar_ticket("Sistema POS - SENAEMPRESA"),
         LINEA_TERMICA,
@@ -183,7 +183,7 @@ def _crear_texto_ticket(
         empresa = str(p.get("lugar", "-"))
 
         lineas.append("")
-        lineas.extend(_envolver(nombre) + _campo_ticket("Cod", p.get("id", "-")))
+        lineas.extend(_envolver(f"{nombre} Cod: {p.get('id', '-')}") )
 
         if mostrar_precios:
             cantidad_linea = f"{_cantidad_texto(cantidad)} {unidad} x {_moneda(precio)} = {_moneda(subtotal)}"

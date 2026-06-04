@@ -80,6 +80,13 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    fecha_remision = ft.Text(
+        "",
+        size=13,
+        weight="bold",
+        visible=False
+    )
+
     # ---------------- FUNCIONES ----------------
 
     # Actualizo el resumen de la remision en pantalla
@@ -446,6 +453,8 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         numeroFactura.value = "Numero de remision: Nueva"
         nota_remision.visible = False
         nota_remision.content.controls[1].value = ""
+        fecha_remision.value = ""
+        fecha_remision.visible = False
 
         actualizar_totales()
 
@@ -463,6 +472,17 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             return False
 
         remision_actual = datos["remision"]
+        campo_notas.value = remision_actual.get("notas", "")
+        campo_notas.visible = True
+
+        fecha = remision_actual.get("fecha")
+
+        if fecha:
+            fecha_remision.value = (
+                "Fecha: " +
+                fecha.strftime("%d/%m/%Y %H:%M:%S")
+            )
+            fecha_remision.visible = True
         cliente = datos["cliente"]
         productos = datos["productos"]
 
@@ -942,6 +962,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ft.Divider(),
 
                 nota_remision,
+                fecha_remision,
 
                 ft.Divider(),
 

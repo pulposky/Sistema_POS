@@ -40,6 +40,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     texto_usuario = ft.Text(f"Usuario: {usuario['usuario']}", size=15, weight="bold")
     texto_nombre = ft.Text(f"Nombre: {usuario['nombre']}", size=15, weight="bold")
     numeroCompra = ft.Text("Número de compra: Nueva", size=17, weight="bold")
+    fechaCompra = ft.Text("", size=13, weight="bold")
 
     def actualizar_totales():
         subtotal_total = compras_controller.calcular_total(productos)
@@ -224,6 +225,9 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         compra = datos["compra"]
         productos = datos["productos"]
+        fechaCompra.value = (
+            f"Fecha: {datos['compra']['fecha']}"
+        )
         proveedor_actual = datos.get("proveedor")
 
         tabla_productos.rows.clear()
@@ -574,6 +578,11 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 descuento,
                 ft.Divider(),
                 total,
+                ft.Divider(),
+
+                fechaCompra,
+
+                ft.Divider(),
                 ft.Row([btn_confirmar], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Row([btn_consultar], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Row([btn_imprimir_consulta], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),
