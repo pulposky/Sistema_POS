@@ -87,6 +87,13 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         visible=False
     )
 
+    usuarioRemision = ft.Text(
+        "",
+        size=13,
+        weight="bold",
+        visible=False
+    )
+
     # ---------------- FUNCIONES ----------------
 
     # Actualizo el resumen de la remision en pantalla
@@ -448,6 +455,9 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         tabla_productos.rows.clear()
 
+        usuarioRemision.value = ""
+        usuarioRemision.visible = False
+
         nombreCliente.value = ""
 
         numeroFactura.value = "Numero de remision: Nueva"
@@ -483,6 +493,13 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 fecha.strftime("%d/%m/%Y %H:%M:%S")
             )
             fecha_remision.visible = True
+
+
+        usuarioRemision.value = (
+            f"Hecha por: {remision_actual.get('nombre_usuario', 'Sin usuario')}"
+        )
+        usuarioRemision.visible = True
+
         cliente = datos["cliente"]
         productos = datos["productos"]
 
@@ -963,10 +980,9 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
                 nota_remision,
                 fecha_remision,
+                usuarioRemision,
 
                 ft.Divider(),
-
-                total,
 
                 ft.Row(
                     btn_facturar,

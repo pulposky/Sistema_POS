@@ -167,14 +167,17 @@ def obtener_compra_por_id(id_compra):
     cursor = conexion.cursor(dictionary=True)
     sql = """
         SELECT
-            id_compra,
-            fecha,
-            total,
-            estado,
-            id_proveedor,
-            id_usuario
-        FROM compras
-        WHERE id_compra = %s
+            c.id_compra,
+            c.fecha,
+            c.total,
+            c.estado,
+            c.id_proveedor,
+            c.id_usuario,
+            u.nombre AS nombre_usuario
+        FROM compras c
+        INNER JOIN usuarios u
+            ON c.id_usuario = u.id_usuario
+        WHERE c.id_compra = %s
     """
     cursor.execute(sql, (id_compra,))
     resultado = cursor.fetchone()

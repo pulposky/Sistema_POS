@@ -42,6 +42,13 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     numeroCompra = ft.Text("Número de compra: Nueva", size=17, weight="bold")
     fechaCompra = ft.Text("", size=13, weight="bold")
 
+    usuarioCompra = ft.Text(
+        "",
+        size=13,
+        weight="bold",
+        visible=False
+    )
+
     def actualizar_totales():
         subtotal_total = compras_controller.calcular_total(productos)
         descuento_valor = 0
@@ -206,6 +213,11 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         numeroCompra.value = "Número de compra: Nueva"
         numeroCompra.color = ft.Colors.BLACK
         btn_imprimir_consulta.visible = False
+
+
+        usuarioCompra.value = ""
+        usuarioCompra.visible = False
+
         actualizar_totales()
         pagina.update()
 
@@ -226,7 +238,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         compra = datos["compra"]
         productos = datos["productos"]
         fechaCompra.value = (
-            f"Fecha: {datos['compra']['fecha']}"
+            f"Fecha: {compra['fecha'].strftime('%d/%m/%Y %H:%M:%S')}"
         )
         proveedor_actual = datos.get("proveedor")
 
@@ -254,6 +266,11 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 proveedor_actual.get("nombre", "")
                 if proveedor_actual else ""
             )
+
+            usuarioCompra.value = (
+                f"Comprado por: {compra.get('nombre_usuario', 'Sin usuario')}"
+            )
+            usuarioCompra.visible = True
 
         if compra["estado"] == "ANULADA":
             numeroCompra.value = f"COMPRA ANULADA #{id_compra:04d}"
@@ -581,6 +598,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ft.Divider(),
 
                 fechaCompra,
+                usuarioCompra,
 
                 ft.Divider(),
                 ft.Row([btn_confirmar], spacing=10, alignment=ft.MainAxisAlignment.CENTER, vertical_alignment=ft.CrossAxisAlignment.CENTER),

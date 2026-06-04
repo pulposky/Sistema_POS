@@ -122,17 +122,20 @@ def obtener_factura_por_id(id_venta):
 
     sql = """
         SELECT
-            id_venta,
-            fecha,
-            total,
-            metodo_pago,
-            estado,
-            id_cliente,
-            id_usuario,
-            dinero_recibido,
-            cambio
-        FROM venta
-        WHERE id_venta = %s
+            v.id_venta,
+            v.fecha,
+            v.total,
+            v.metodo_pago,
+            v.estado,
+            v.id_cliente,
+            v.id_usuario,
+            u.nombre AS nombre_usuario,
+            v.dinero_recibido,
+            v.cambio
+        FROM venta v
+        INNER JOIN usuarios u
+            ON v.id_usuario = u.id_usuario
+        WHERE v.id_venta = %s
     """
 
     cursor.execute(sql, (id_venta,))

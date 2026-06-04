@@ -62,6 +62,9 @@ def confirmar_compra(proveedor, productos, usuario):
     return {
         "id_compra": id_compra,
         "ruta_pdf": ruta_pdf,
+        "usuario_factura": {
+            "nombre": compra_datos["nombre_usuario"]
+        }
     }
 
 
@@ -129,8 +132,8 @@ def cargar_compra(id_compra):
 
     return {
         "compra": compra,
-        "productos": productos,
         "proveedor": proveedor,
+        "productos": productos,
     }
 
 

@@ -134,10 +134,12 @@ def cargar_factura(id_venta):
             ),
         })
     return {
-
         "factura": factura,
         "cliente": cliente,
         "productos": productos,
+        "usuario_factura": {
+            "nombre": factura["nombre_usuario"]
+        }
     }
 
 
@@ -151,7 +153,7 @@ def imprimir_factura_consultada(id_venta, usuario):
     if imprimir_factura_datos(
         id_factura=id_venta,
         cliente=datos["cliente"],
-        usuario=usuario,
+        usuario=datos["usuario_factura"],
         productos=datos["productos"],
         total=factura.get("total", 0),
         metodo_pago=factura.get("metodo_pago", ""),

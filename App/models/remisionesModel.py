@@ -78,9 +78,18 @@ def obtener_remision_por_id(id_remision):
     cursor = conexion.cursor(dictionary=True)
 
     sql = """
-        SELECT id_remision, fecha, tipo_remision, id_cliente, id_usuario, notas
-        FROM remision
-        WHERE id_remision = %s
+        SELECT
+            r.id_remision,
+            r.fecha,
+            r.tipo_remision,
+            r.id_cliente,
+            r.id_usuario,
+            r.notas,
+            u.nombre AS nombre_usuario
+        FROM remision r
+        INNER JOIN usuarios u
+            ON r.id_usuario = u.id_usuario
+        WHERE r.id_remision = %s
     """
 
     cursor.execute(sql, (id_remision,))
