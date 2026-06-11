@@ -40,7 +40,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     texto_usuario = ft.Text(f"Usuario: {usuario['usuario']}", size=15, weight="bold")
     texto_nombre = ft.Text(f"Nombre: {usuario['nombre']}", size=15, weight="bold")
     numeroCompra = ft.Text("Número de compra: Nueva", size=17, weight="bold")
-    fechaCompra = ft.Text("", size=13, weight="bold")
+    fechaCompra = ft.Text("", size=13, weight="bold", visible=False)
 
     usuarioCompra = ft.Text(
         "",
@@ -102,6 +102,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
 
     def refrescar_tabla():
+        
         tabla_productos.rows.clear()
         for p in productos:
             cantidad_texto = compras_controller.formatear_cantidad(p["cantidad"])
@@ -130,16 +131,6 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             return
 
         cantidad = producto.get("cantidad", 1)
-
-        for producto_existente in productos:
-            if producto_existente["id"] == producto["id"]:
-                producto_existente["cantidad"] += cantidad
-                producto_existente["subtotal"] = (
-                    float(producto_existente["cantidad"]) * float(producto_existente["precio"])
-                )
-                refrescar_tabla()
-                actualizar_totales()
-                return
 
         producto["subtotal"] = float(producto.get("cantidad", 1)) * float(producto.get("precio", 0))
         productos.append(producto)
@@ -217,6 +208,8 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         usuarioCompra.value = ""
         usuarioCompra.visible = False
+        fechaCompra.value = ""
+        fechaCompra.visible = False
 
         actualizar_totales()
         pagina.update()
@@ -240,6 +233,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         fechaCompra.value = (
             f"Fecha: {compra['fecha'].strftime('%d/%m/%Y %H:%M:%S')}"
         )
+        fechaCompra.visible = True
         proveedor_actual = datos.get("proveedor")
 
         tabla_productos.rows.clear()

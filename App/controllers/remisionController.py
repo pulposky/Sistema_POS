@@ -22,11 +22,9 @@ def obtener_opciones_remision():
 
 # Formateo la cantidad para que si es entero no salga con .0.
 def formatear_cantidad(cantidad):
-    if isinstance(cantidad, float) and cantidad.is_integer():
+    if float(cantidad).is_integer():
         return str(int(cantidad))
-    if isinstance(cantidad, int):
-        return str(cantidad)
-    return str(cantidad)
+    return f"{cantidad:.3f}".rstrip("0").rstrip(".")
 
 
 # Calculo el resumen que se muestra en el panel derecho.
@@ -122,7 +120,9 @@ def imprimir_remision_consultada(id_remision, usuario):
     if imprimir_factura_datos(
         id_factura=id_remision,
         cliente=datos["cliente"],
-        usuario=usuario,
+        usuario={
+            "nombre": remision["nombre_usuario"]
+        },
         productos=datos["productos"],
         total=0,
         metodo_pago=remision.get("tipo_remision", "REMISION"),

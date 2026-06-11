@@ -60,8 +60,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     texto_nombre  = ft.Text(f"Nombre: {usuario['nombre']}",  size=15, weight="bold")
 
     numeroFactura = ft.Text("Número de factura: 0001", size=17, weight="bold")
-    texto_fecha = ft.Text("", size=13, weight="bold")
-    usuarioFactura = ft.Text("", size=13, weight="bold")
+    texto_fecha = ft.Text("", size=13, weight="bold", visible=False)
+    usuarioFactura = ft.Text("", size=13, weight="bold", visible=False)
 
     # ---------------- FUNCIONES ----------------
 
@@ -351,6 +351,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         usuarioFactura.value = ""
         usuarioFactura.visible = False
+        texto_fecha.value = ""
+        texto_fecha.visible = False
 
         numeroFactura.value = "Número de factura: Nueva"
         numeroFactura.color = ft.Colors.BLACK
@@ -377,6 +379,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         texto_fecha.value = (
             f"Fecha: {factura['fecha'].strftime('%d/%m/%Y %H:%M:%S')}"
         )
+        texto_fecha.visible = True
 
         for i, producto in enumerate(productos):
             cantidad_texto = ventas_controller.formatear_cantidad(producto["cantidad"])

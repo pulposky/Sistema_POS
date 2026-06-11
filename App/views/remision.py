@@ -120,64 +120,6 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # Cantidad que el usuario quiere agregar
         cantidad = producto.get("cantidad", 1)
 
-        # ---------------------------------------------
-        # VALIDAR SI YA EXISTE EN LA FACTURA
-        # ---------------------------------------------
-        for producto_existente in productos:
-            if producto_existente["id"] == producto["id"]:
-                nueva_cantidad = (
-                    producto_existente["cantidad"] + cantidad
-                )
-
-
-                # Actualizo cantidad
-                producto_existente["cantidad"] = nueva_cantidad
-
-                # Actualizo subtotal
-                producto_existente["subtotal"] = (
-                    nueva_cantidad * producto_existente["precio"]
-                )
-
-                # Refresco tabla
-                tabla_productos.rows.clear()
-
-                for i, p in enumerate(productos):
-                    cantidad_texto = remision_controller.formatear_cantidad(
-                        p["cantidad"]
-                    )
-                    tabla_productos.rows.append(
-                        ft.DataRow(
-                            cells=[
-                                ft.DataCell(ft.Text(str(p.get('id', '-')))),
-                                ft.DataCell(ft.Text(p.get('nombre', 'Sin nombre'))),
-                                ft.DataCell(
-                                    ft.TextButton(
-                                        content=ft.Text(cantidad_texto),
-                                        on_click=lambda e, idx=len(productos)-1: editar_cantidad(idx)
-                                    )
-                                ),
-                                ft.DataCell(ft.Text(str(p.get('unidad', 'UND')))),
-                                ft.DataCell(ft.Text(f"${p.get('precio', 0):,.2f}")),
-                                ft.DataCell(ft.Text(f"${p.get('subtotal', 0):,.2f}")),
-                                ft.DataCell(ft.Text(str(p.get('lugar', '-')))),
-                                ft.DataCell(
-                                ft.IconButton(
-                                    icon=ft.Icons.CLOSE,
-                                    icon_color=ft.Colors.RED,
-                                    on_click=lambda e, idx=i: eliminar_producto(idx)
-                                )
-                            )
-                            ]
-                        )
-                    )
-                actualizar_totales()
-                tabla_productos.update()
-                return
-
-        # ---------------------------------------------
-        # SI NO EXISTE LO AGREGO NORMAL
-        # ---------------------------------------------
-
         producto["subtotal"] = (
             producto["cantidad"] * producto["precio"]
         )

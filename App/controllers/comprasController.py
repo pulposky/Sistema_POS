@@ -13,11 +13,9 @@ def calcular_total(productos):
 
 
 def formatear_cantidad(cantidad):
-    if isinstance(cantidad, float) and cantidad.is_integer():
+    if float(cantidad).is_integer():
         return str(int(cantidad))
-    if isinstance(cantidad, int):
-        return str(cantidad)
-    return str(cantidad)
+    return f"{cantidad:.3f}".rstrip("0").rstrip(".")
 
 
 def confirmar_compra(proveedor, productos, usuario):
@@ -82,7 +80,9 @@ def imprimir_compra_consultada(id_compra, usuario):
             "nombre": proveedor.get("nombre", "Proveedor"),
             "documento": proveedor.get("nit", "-")
         },
-        usuario=usuario,
+        usuario={
+            "nombre": compra["nombre_usuario"]
+        },
         productos=datos["productos"],
         total=compra.get("total", 0),
         metodo_pago="COMPRA",
