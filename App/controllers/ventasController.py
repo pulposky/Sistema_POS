@@ -28,14 +28,9 @@ def calcular_total(productos):
 # no muestre decimales innecesarios
 # ---------------------------------------------------
 def formatear_cantidad(cantidad):
-
-    if isinstance(cantidad, float) and cantidad.is_integer():
+    if float(cantidad).is_integer():
         return str(int(cantidad))
-    
-    if isinstance(cantidad, int):
-        return str(cantidad)
-
-    return str(cantidad)
+    return f"{cantidad:.3f}".rstrip("0").rstrip(".")
 
 
 # ---------------------------------------------------
