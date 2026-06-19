@@ -94,6 +94,70 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ================== FUNCIONES ==================
 
+    def abrir_calendario(campo_fecha: ft.TextField, titulo_calendario: str):
+        """Abre un calendario y copia la fecha elegida al campo en formato DD/MM/YYYY."""
+
+        def seleccionar_fecha(e):
+            if e.control.value:
+                campo_fecha.value = e.control.value.strftime("%d/%m/%Y")
+                campo_fecha.update()
+
+        fecha_inicial = datetime.now()
+        if campo_fecha.value:
+            try:
+                fecha_inicial = datetime.strptime(campo_fecha.value, "%d/%m/%Y")
+            except ValueError:
+                pass
+
+        pagina.show_dialog(
+            ft.DatePicker(
+                help_text=titulo_calendario,
+                field_label_text="Fecha",
+                field_hint_text="DD/MM/YYYY",
+                cancel_text="Cancelar",
+                confirm_text="Aceptar",
+                first_date=datetime(2000, 1, 1),
+                last_date=datetime(2100, 12, 31),
+                current_date=datetime.now(),
+                value=fecha_inicial,
+                on_change=seleccionar_fecha
+            )
+        )
+
+    selector_fecha_inicio = ft.Row(
+        [
+            campo_fecha_inicio,
+            ft.IconButton(
+                icon=ft.Icons.CALENDAR_MONTH,
+                tooltip="Seleccionar fecha inicio",
+                on_click=lambda _: abrir_calendario(
+                    campo_fecha_inicio,
+                    "Seleccionar fecha inicio"
+                )
+            )
+        ],
+        spacing=0,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        tight=True
+    )
+
+    selector_fecha_fin = ft.Row(
+        [
+            campo_fecha_fin,
+            ft.IconButton(
+                icon=ft.Icons.CALENDAR_MONTH,
+                tooltip="Seleccionar fecha fin",
+                on_click=lambda _: abrir_calendario(
+                    campo_fecha_fin,
+                    "Seleccionar fecha fin"
+                )
+            )
+        ],
+        spacing=0,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        tight=True
+    )
+
     # Mantengo la fecha y hora actualizadas en pantalla
     async def actualizar_hora():
         while True:
@@ -287,8 +351,15 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
                 ft.Row(
                     [
-                        campo_fecha_inicio,
-                        campo_fecha_fin,
+                        ft.Row(
+                            [
+                                selector_fecha_inicio,
+                                selector_fecha_fin,
+                            ],
+                            spacing=10,
+                            tight=True,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER
+                        ),
                         campo_producto,
                         btn_buscar,
                         btn_limpiar,
