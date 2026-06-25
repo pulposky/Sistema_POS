@@ -2,6 +2,7 @@ import flet as ft
 from models.ventasModel import (
     crear_cliente, crear_producto
 )
+from models.comprasModel import crear_proveedor
 
 
 # =========================================================
@@ -9,7 +10,7 @@ from models.ventasModel import (
 # =========================================================
 
 
-def Crear(pagina: ft.Page, callback):
+def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
     # Guardo el teclado de la vista anterior para restaurarlo al cerrar
     teclado_anterior = pagina.on_keyboard_event
@@ -32,7 +33,7 @@ def Crear(pagina: ft.Page, callback):
     campo_rol       = ft.TextField(label="Rol/Cargo", width=300)
 
     # Mensaje de error o validacion
-    mensaje = ft.Text("", color=ft.Colors.RED, size=12)
+    mensaje_usuario = ft.Text("", color=ft.Colors.RED, size=12)
 
     # Formulario oculto al inicio, solo se muestra si elige "Crear Usuario"
     form_usuario = ft.Column(
@@ -42,10 +43,24 @@ def Crear(pagina: ft.Page, callback):
             campo_direccion,
             campo_telefono,
             campo_rol,
-            mensaje
+            mensaje_usuario
         ],
         spacing=10,
         visible=False  # oculto hasta que el usuario elija "👤 Usuario"
+    )
+
+    # -------- CAMPOS FORMULARIO PROVEEDOR --------
+
+    campo_nombre_proveedor = ft.TextField(label="Nombre", width=300)
+    mensaje_proveedor = ft.Text("", color=ft.Colors.RED, size=12)
+
+    form_proveedor = ft.Column(
+        [
+            campo_nombre_proveedor,
+            mensaje_proveedor
+        ],
+        spacing=10,
+        visible=False
     )
 
 
@@ -76,7 +91,7 @@ def Crear(pagina: ft.Page, callback):
     campo_stock  = ft.TextField(label="Stock",  width=300)
 
     # Mensaje de error o validacion
-    mensaje = ft.Text("", color=ft.Colors.RED, size=12)
+    mensaje_producto = ft.Text("", color=ft.Colors.RED, size=12)
 
     # Formulario oculto al inicio, solo se muestra si elige "Crear Producto"
     form_producto = ft.Column(
@@ -86,12 +101,15 @@ def Crear(pagina: ft.Page, callback):
             campo_empresa,
             campo_precio,
             campo_stock,
-            mensaje
+            mensaje_producto
         ],
         spacing=10,
         visible=False  # oculto hasta que el usuario elija "👤 Usuario"
     )
     # -------- RADIO GROUP --------
+
+    etiqueta_tercero = "Proveedor" if tipo_tercero == "proveedor" else "Usuario"
+    icono_tercero = "🏢" if tipo_tercero == "proveedor" else "👤"
 
     # Opciones que el usuario puede elegir
     radio_group = ft.RadioGroup(
@@ -100,7 +118,7 @@ def Crear(pagina: ft.Page, callback):
         content=ft.Column(
             [
                 ft.Radio(value="CrearP", label="📦 Producto"),
-                ft.Radio(value="CrearU", label="👤 Usuario")
+                ft.Radio(value="CrearU", label=f"{icono_tercero} {etiqueta_tercero}")
             ],
             spacing=10
         )
@@ -109,7 +127,7 @@ def Crear(pagina: ft.Page, callback):
     # Contenido del dialogo: primero el radio, luego el formulario
     # El formulario empieza oculto
     contenido = ft.Column(
-        [radio_group, form_usuario, form_producto],
+        [radio_group, form_usuario, form_proveedor, form_producto],
         spacing=10
     )
 
@@ -145,16 +163,23 @@ def Crear(pagina: ft.Page, callback):
         fase = "crear_usuario"
 
         # Cambio el titulo del dialogo
-        dialog.title = ft.Text("Crear Cliente 👤 ", weight="bold")
+        if tipo_tercero == "proveedor":
+            dialog.title = ft.Text("Crear Proveedor", weight="bold")
+        else:
+            dialog.title = ft.Text("Crear Cliente 👤 ", weight="bold")
 
         # Oculto las opciones y muestro el formulario
         radio_group.visible = False
-        form_usuario.visible = True
+        form_usuario.visible = tipo_tercero != "proveedor"
+        form_proveedor.visible = tipo_tercero == "proveedor"
 
         pagina.update()
 
         # Enfoco el primer campo del formulario
-        pagina.run_task(enfocar, campo_nombre)
+        if tipo_tercero == "proveedor":
+            pagina.run_task(enfocar, campo_nombre_proveedor)
+        else:
+            pagina.run_task(enfocar, campo_nombre)
     
     def mostrar_form_productos():
         nonlocal fase
@@ -180,10 +205,13 @@ def Crear(pagina: ft.Page, callback):
 
     # Guardo el cliente en la base de datos
     def guardar_usuario(e=None):
+        if tipo_tercero == "proveedor":
+            guardar_proveedor()
+            return
 
         # Valido que el nombre no este vacio
         if not campo_nombre.value.strip():
-            mensaje.value = "El nombre es obligatorio"
+            mensaje_usuario.value = "El nombre es obligatorio"
             pagina.update()
             return
 
@@ -208,7 +236,28 @@ def Crear(pagina: ft.Page, callback):
             callback(datos)
             cerrar_dialogo()
         else:
-            mensaje.value = "Error al guardar el cliente"
+            mensaje_usuario.value = "Error al guardar el cliente"
+            pagina.update()
+
+    def guardar_proveedor(e=None):
+
+        if not campo_nombre_proveedor.value.strip():
+            mensaje_proveedor.value = "El nombre es obligatorio"
+            pagina.update()
+            return
+
+        datos = {
+            "nombre": campo_nombre_proveedor.value.strip()
+        }
+
+        id_nuevo = crear_proveedor(datos)
+
+        if id_nuevo:
+            datos["id_proveedor"] = id_nuevo
+            callback(datos)
+            cerrar_dialogo()
+        else:
+            mensaje_proveedor.value = "Error al guardar el proveedor"
             pagina.update()
         
         
@@ -216,40 +265,40 @@ def Crear(pagina: ft.Page, callback):
 
         # Validar campos vacíos
         if not campo_nombre_producto.value.strip():
-            mensaje.value = "El nombre es obligatorio"
+            mensaje_producto.value = "El nombre es obligatorio"
             pagina.update()
             return
 
         if not campo_unidad.value.strip():
-            mensaje.value = "La unidad es obligatoria"
+            mensaje_producto.value = "La unidad es obligatoria"
             pagina.update()
             return
 
         if not campo_precio.value.strip():
-            mensaje.value = "El precio es obligatorio"
+            mensaje_producto.value = "El precio es obligatorio"
             pagina.update()
             return
 
         if not campo_stock.value.strip():
-            mensaje.value = "El stock es obligatorio"
+            mensaje_producto.value = "El stock es obligatorio"
             pagina.update()
             return
         
         if not campo_empresa.value.strip():
-            mensaje.value = "El lugar es obligatorio"
+            mensaje_producto.value = "El lugar es obligatorio"
 
         # Validar números
         try:
             precio = float(campo_precio.value)
         except:
-            mensaje.value = "El precio debe ser numérico"
+            mensaje_producto.value = "El precio debe ser numérico"
             pagina.update()
             return
 
         try:
             stock = int(campo_stock.value)
         except:
-            mensaje.value = "El stock debe ser un número entero"
+            mensaje_producto.value = "El stock debe ser un número entero"
             pagina.update()
             return
 
@@ -270,7 +319,7 @@ def Crear(pagina: ft.Page, callback):
             callback(datos)
             cerrar_dialogo()
         else:
-            mensaje.value = "Error al guardar el Producto"
+            mensaje_producto.value = "Error al guardar el Producto"
             pagina.update()
 
     # Boton confirmar: su comportamiento cambia segun la fase

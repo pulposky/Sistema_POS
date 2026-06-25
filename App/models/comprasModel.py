@@ -20,6 +20,32 @@ def buscar_proveedor(texto):
 
     return resultados
 
+
+def crear_proveedor(datos):
+    conexion = conectar()
+    cursor = conexion.cursor()
+
+    try:
+        sql = """
+            INSERT INTO proveedores (nombre)
+            VALUES (%s)
+        """
+        cursor.execute(sql, (datos.get("nombre", ""),))
+        conexion.commit()
+        id_nuevo = cursor.lastrowid
+
+        cursor.close()
+        conexion.close()
+
+        return id_nuevo
+
+    except Exception as e:
+        conexion.rollback()
+        cursor.close()
+        conexion.close()
+        print(f"Error al crear proveedor: {e}")
+        return None
+
 def guardar_compra(compra_datos, detalles):
     conexion = conectar()
     cursor = conexion.cursor()

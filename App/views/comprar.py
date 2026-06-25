@@ -412,13 +412,11 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
 
     def crearP_C():
-        def on_crear(opcion):
-            if opcion == "CrearP":
-                print("Abrir crear producto")
-            elif opcion == "CrearU":
-                print("Abrir crear usuario")
+        def callback_creacion(datos):
+            if datos.get("id_proveedor"):
+                seleccionar_proveedor(datos)
 
-        dialog = Crear(pagina, on_crear)
+        dialog = Crear(pagina, callback_creacion, tipo_tercero="proveedor")
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
@@ -481,7 +479,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     )
     
     btn_crear_pc = ft.Button(
-        "Crear P/C [F8]",
+        "Crear P/Prov [F8]",
         on_click=lambda _: crearP_C(),
         width=190,
         height=40,

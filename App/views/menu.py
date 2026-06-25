@@ -36,11 +36,7 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     def consultar_facturas(e):
         ir_a_consultar_facturas(usuario)
-
-    def configuracion(e):
-        print("Configuración")
-
-    # Cuando el usuario cierra sesion vuelvo al login
+        
     def cerrar_sesion():
         ir_a_main()
 
@@ -83,7 +79,7 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
                     shape=ft.RoundedRectangleBorder(radius=10),
                     text_style=ft.TextStyle(size=15, weight="bold")
                 )),
-        ft.Button("Consultar Facturas", 
+        ft.Button("🔍 Consultar Facturas", 
                 on_click=consultar_facturas,
                 width=250,
                 height=40,
