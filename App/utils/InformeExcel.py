@@ -83,6 +83,8 @@ def crear_informe_facturas(tabla_documentos):
             fill_type="solid"
         )
 
+    hoja.auto_filter.ref = f"A1:{get_column_letter(len(encabezados))}1"
+
     for fila in filas:
         hoja.append(fila)
 
