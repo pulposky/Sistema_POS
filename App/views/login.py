@@ -53,7 +53,8 @@ def login_view(pagina: ft.Page, ir_a_main, ir_a_menu):
         label="Contraseña",
         password=True,
         width=250,
-        on_submit=lambda e: actualizar_mensaje()
+        on_submit=lambda e: actualizar_mensaje(),
+        can_reveal_password=True
     )
 
     # Logo del SENA

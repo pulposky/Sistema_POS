@@ -49,8 +49,6 @@ def filtrar_documentos(
             continue
 
         if producto:
-            # En modo detallado el producto está en 'producto'
-            # En modo normal está en 'productos'
             campo_producto = (
                 doc.get("producto", "")
                 if tipo == "VENTAS DETALLADAS"

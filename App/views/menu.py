@@ -3,7 +3,7 @@ import flet as ft
 # =========================================================
 # MENU DE MODULOS
 # =========================================================
-def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras, ir_a_inventario, ir_a_consultar_facturas): 
+def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras, ir_a_inventario, ir_a_consultar_facturas, ir_a_nuevo_usuario): 
 
     # Limpio la pantalla
     pagina.clean()
@@ -33,6 +33,9 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     def abrir_inventario(e):
         ir_a_inventario(usuario)
+
+    def abrir_nuevo_usuario(e):
+        ir_a_nuevo_usuario(usuario)
 
     def consultar_facturas(e):
         ir_a_consultar_facturas(usuario)
@@ -79,6 +82,14 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
                     shape=ft.RoundedRectangleBorder(radius=10),
                     text_style=ft.TextStyle(size=15, weight="bold")
                 )),
+        ft.Button("👤 Nuevo Usuario",
+                on_click=abrir_nuevo_usuario,
+                width=250,
+                height=40,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    text_style=ft.TextStyle(size=15, weight="bold")
+            )),
         ft.Button("🔍 Consultar Facturas", 
                 on_click=consultar_facturas,
                 width=250,
@@ -94,6 +105,18 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
                     text_style=ft.TextStyle(size=15, weight="bold")
                 ))
     ]
+
+
+    # validacion de rol para los botones de menu
+    if usuario.get("rol", "") != "Admin":
+        botones[4].disabled = True  # Nuevo Usuario
+
+    if usuario.get("rol", "") == "Consultas":
+        botones[0].disabled = True  # Facturacion
+        botones[1].disabled = True  # Compras
+        botones[2].disabled = True  # Remision
+        botones[3].disabled = True  # Inventario
+        botones[4].disabled = True  # Nuevo Usuario
 
     # ---------------- TECLADO ----------------
 

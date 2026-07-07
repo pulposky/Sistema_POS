@@ -151,7 +151,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         controles.append(
             ft.IconButton(
                 icon=ft.Icons.CLOSE,
-                icon_color=ft.Colors.RED,
+                icon_color=ft.Colors.RED, 
                 on_click=lambda e, idx=index: eliminar_producto(idx),
                 disabled=deshabilitado
             )
