@@ -23,7 +23,7 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     def seleccionar_rol(e):
         password.disabled = e.control.value in ["Aprendiz", "Consultas"]
         if password.disabled:
-            password.value = ""
+            password.value = "APRENDIZ"
         pagina.update()
 
     rol = ft.Dropdown(
@@ -39,7 +39,7 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     )
     password.disabled = rol.value in ["Aprendiz", "Consultas"]
     if password.disabled:
-        password.value = ""
+        password.value = "APRENDIZ"
 
 
     # ---------------- BOTONES ----------------
