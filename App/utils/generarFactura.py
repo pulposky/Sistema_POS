@@ -41,8 +41,7 @@ def _carpeta_facturas(tipo=None):
     base = os.path.join(
         os.path.expanduser("~"),
         "OneDrive",
-        "Documents",
-        "Proyecto",
+        "GA BD Soft Factinven",
         "Facturas"
     )
 

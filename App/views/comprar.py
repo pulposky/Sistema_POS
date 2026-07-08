@@ -7,6 +7,7 @@ from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
 from utils.buscarProveedor import buscar_proveedor_view
+from utils.abrirNuevaVentana import abrir_nueva_instancia
 
 
 # =========================================================
@@ -21,6 +22,9 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     index_compra = -1
     modo_consulta = False
     id_compra_actual = None
+
+    # Control para alternar entre crear una nueva compra en la misma ventana o abrir otra ventana
+    f4_siguiente_abrir_ventana = True
 
     pagina.clean()
     pagina.window.width = 1400
@@ -297,11 +301,20 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         print(f"Compra {id_compra_actual} enviada a imprimir")
 
     def nueva_compra():
-        nonlocal compras, index_compra, modo_consulta
+        nonlocal compras, index_compra, modo_consulta, f4_siguiente_abrir_ventana
+
+        # Si ya se usó el cambio anterior, abro una segunda ventana
+        if not f4_siguiente_abrir_ventana:
+            abrir_nueva_instancia("compra", usuario)
+            f4_siguiente_abrir_ventana = True
+            return
+
+        # Si es la primera vez, limpio la compra actual y preparo una nueva en la misma ventana
         compras.clear()
         index_compra = -1
         modo_consulta = False
         limpiar_compra()
+        f4_siguiente_abrir_ventana = False
 
     def siguiente_compra():
         nonlocal index_compra

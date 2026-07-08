@@ -1,6 +1,8 @@
+import json
+import os
 import flet as ft
 
-# Importo la navegación
+# Importo la navegación de la aplicación
 from routers.navegacion import configurar_rutas
 
 # ---------------- BASE DE DATOS ----------------
@@ -27,11 +29,35 @@ def main(pagina: ft.Page):
 
     pagina.theme_mode = ft.ThemeMode.LIGHT
 
-    # Inicio las rutas
-    iniciar = configurar_rutas(pagina)
+    # Inicio las rutas disponibles de la app
+    rutas, iniciar = configurar_rutas(pagina)
 
-    # Muestro la vista inicial
-    iniciar()
+    # Leo la vista que se debe abrir desde la nueva instancia
+    vista = os.getenv("POS_VIEW", "").strip().lower()
+    usuario_json = os.getenv("POS_USUARIO", "")
+
+    # Si viene una vista específica, la abro directamente en la nueva ventana
+    if vista in {"factura", "venta", "vender"}:
+        usuario = json.loads(usuario_json) if usuario_json else None
+        if usuario:
+            rutas["vender"](usuario)
+        else:
+            iniciar()
+    elif vista in {"compra", "compras"}:
+        usuario = json.loads(usuario_json) if usuario_json else None
+        if usuario:
+            rutas["compras"](usuario)
+        else:
+            iniciar()
+    elif vista == "remision":
+        usuario = json.loads(usuario_json) if usuario_json else None
+        if usuario:
+            rutas["remision"](usuario)
+        else:
+            iniciar()
+    else:
+        # Si no viene una vista especial, sigo con la vista inicial normal
+        iniciar()
 
 # Inicio Flet
 if __name__ == "__main__":

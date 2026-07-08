@@ -6,6 +6,7 @@ from utils.buscarCliente import buscar_cliente_view
 from controllers import remisionController as remision_controller
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
+from utils.abrirNuevaVentana import abrir_nueva_instancia
 
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR REMISIONES
@@ -25,6 +26,9 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     index_remision = -1
     modo_consulta = False
     id_remision_actual = None
+
+    # Control para alternar entre crear una nueva remisión en la misma ventana o abrir otra ventana
+    f4_siguiente_abrir_ventana = True
     opciones_remision = remision_controller.obtener_opciones_remision()
 #-------------------------------------------
 
@@ -529,11 +533,20 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         print(f"Remision {id_remision_actual} enviada a imprimir")
 
     def nueva_remision():
-        nonlocal index_remision, modo_consulta
+        nonlocal index_remision, modo_consulta, f4_siguiente_abrir_ventana
+
+        # Si ya se usó el cambio anterior, abro una segunda ventana
+        if not f4_siguiente_abrir_ventana:
+            abrir_nueva_instancia("remision", usuario)
+            f4_siguiente_abrir_ventana = True
+            return
+
+        # Si es la primera vez, limpio la remisión actual y preparo una nueva en la misma ventana
         remisiones.clear()
         index_remision = -1
         modo_consulta = False
         limpiar_factura()
+        f4_siguiente_abrir_ventana = False
 
     def siguiente_remision():
         nonlocal index_remision

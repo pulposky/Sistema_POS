@@ -60,8 +60,8 @@ def crear_informe_facturas(tabla_documentos):
     except ImportError as exc:
         raise RuntimeError("Falta instalar openpyxl para crear el informe.") from exc
 
-    carpeta_informes = Path(__file__).resolve().parents[2] / "Informes"
-    carpeta_informes.mkdir(exist_ok=True)
+    carpeta_informes = Path.home() / "OneDrive" / "GA BD Soft Factinven" / "Informes"
+    carpeta_informes.mkdir(parents=True, exist_ok=True)
 
     nombre_archivo = (
         f"informe_facturas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
