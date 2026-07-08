@@ -1,5 +1,6 @@
 from database.bd import conectar
 
+# Modelo para gestionar usuarios del sistema.
 
 #=====================================================
 # CREAR USUARIO

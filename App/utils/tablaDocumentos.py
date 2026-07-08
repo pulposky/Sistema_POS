@@ -1,5 +1,6 @@
 import flet as ft
 
+# Utilidad para pintar tablas de documentos en la vista de consultas.
 
 def pintar_documentos(tabla_documentos, cantidad_documentos, documentos):
     """Pinta los documentos en la tabla de consulta."""

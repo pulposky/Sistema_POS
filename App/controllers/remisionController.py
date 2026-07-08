@@ -1,6 +1,8 @@
 from datetime import datetime
 from models.remisionesModel import (
-    guardar_remision,
+
+# Controlador de remisiones.
+# Mantiene la lógica de preparación, resumen y generación de remisiones.    guardar_remision,
     obtener_todas_remisiones,
     obtener_remision_por_id,
     obtener_detalles_remision,
@@ -37,12 +39,38 @@ def calcular_resumen(productos):
     }
 
 
-# Preparo el producto para remision, sin precios ni subtotales.
-def preparar_producto_remision(producto):
+# Preparo el producto para remision, manteniendo el precio y subtotal
+# cuando la vista lo requiera.
+def preparar_producto_remision(producto, incluir_precios=True):
     producto_remision = producto.copy()
-    producto_remision["precio"] = 0
-    producto_remision["subtotal"] = 0
+    if incluir_precios:
+        cantidad = float(producto_remision.get("cantidad", 1))
+        producto_remision["subtotal"] = cantidad * float(producto_remision.get("precio", 0))
+    else:
+        producto_remision["precio"] = 0
+        producto_remision["subtotal"] = 0
     return producto_remision
+
+
+# Actualiza la cantidad y el subtotal del producto en la remision.
+def actualizar_cantidad_producto_remision(producto, nueva_cantidad):
+    producto["cantidad"] = float(nueva_cantidad)
+    producto["subtotal"] = float(producto["cantidad"]) * float(producto.get("precio", 0))
+    return producto
+
+
+# Agrega un producto organizado a la lista de remision.
+def agregar_producto_a_remision(productos, producto):
+    producto_preparado = preparar_producto_remision(producto, incluir_precios=True)
+    productos.append(producto_preparado)
+    return producto_preparado
+
+
+# Elimina un producto de la lista de remision.
+def quitar_producto_de_remision(productos, index):
+    if 0 <= index < len(productos):
+        productos.pop(index)
+    return productos
 
 
 # Guardo la remision y genero el PDF.

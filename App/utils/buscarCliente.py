@@ -3,6 +3,8 @@ import asyncio
 import flet as ft
 from models.ventasModel import buscar_cliente, actualizar_cliente
 
+# Utilidad para buscar y seleccionar clientes desde una ventana emergente.
+
 
 # Vista secundaria que abre el dialogo para buscar y seleccionar clientes
 def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):

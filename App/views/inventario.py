@@ -1,5 +1,5 @@
 # VISTA PARA INVENTARIO
-
+# Muestra los productos con stock bajo o negativo para seguimiento.
 import flet as ft
 import asyncio 
 from datetime import datetime

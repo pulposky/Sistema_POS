@@ -1,5 +1,6 @@
 import flet as ft
 from controllers import usuarioController
+# Vista para crear usuarios desde la interfaz del sistema.
 
 def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     # Limpio la pantalla

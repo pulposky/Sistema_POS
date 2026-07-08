@@ -2,7 +2,8 @@ import json
 import os
 import flet as ft
 
-# Importo la navegación de la aplicación
+# Punto de entrada principal del sistema.
+# Aquí se inicia la aplicación y se define el comportamiento inicial de la ventana.
 from routers.navegacion import configurar_rutas
 
 # ---------------- BASE DE DATOS ----------------

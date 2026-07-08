@@ -1,6 +1,7 @@
 import os
 import sys
 import textwrap
+# Utilidad para generar PDFs y tickets de facturas, compras y remisiones.
 from datetime import datetime
 
 import win32print

@@ -1,5 +1,7 @@
 from views.inicio import inicio_view
 from views.login import login_view
+# Módulo central de navegación.
+# Define las rutas y redirige entre las pantallas del sistema.
 from views.menu import menu_view
 from views.vender import vender
 from views.remision import remision

@@ -1,5 +1,8 @@
 from datetime import datetime
 from models import comprasModel
+
+# Controlador de compras.
+# Se encarga de preparar datos, calcular totales y gestionar la lógica de compra.
 from models.ventasModel import obtener_producto_por_id
 from models.comprasModel import guardar_compra
 from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
@@ -16,6 +19,32 @@ def formatear_cantidad(cantidad):
     if float(cantidad).is_integer():
         return str(int(cantidad))
     return f"{cantidad:.3f}".rstrip("0").rstrip(".")
+
+
+def preparar_producto_compra(producto, cantidad=None):
+    producto_compra = dict(producto)
+    cantidad_valor = float(cantidad if cantidad is not None else producto_compra.get("cantidad", 1))
+    producto_compra["cantidad"] = cantidad_valor
+    producto_compra["subtotal"] = cantidad_valor * float(producto_compra.get("precio", 0))
+    return producto_compra
+
+
+def actualizar_cantidad_producto_compra(producto, nueva_cantidad):
+    producto["cantidad"] = float(nueva_cantidad)
+    producto["subtotal"] = float(producto["cantidad"]) * float(producto.get("precio", 0))
+    return producto
+
+
+def agregar_producto_a_compra(productos, producto):
+    producto_preparado = preparar_producto_compra(producto)
+    productos.append(producto_preparado)
+    return producto_preparado
+
+
+def quitar_producto_de_compra(productos, index):
+    if 0 <= index < len(productos):
+        productos.pop(index)
+    return productos
 
 
 def confirmar_compra(proveedor, productos, usuario):

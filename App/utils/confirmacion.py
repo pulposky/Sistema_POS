@@ -1,5 +1,6 @@
 import flet as ft
 
+# Utilidad para mostrar mensajes de confirmación antes de borrar o anular datos.
 def confirmar_view(pagina: ft.Page, mensaje, callback):
 
     teclado_anterior = pagina.on_keyboard_event

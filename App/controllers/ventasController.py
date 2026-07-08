@@ -1,5 +1,8 @@
 from datetime import datetime
 from models.ventasModel import (
+
+# Controlador de ventas.
+# Aquí van las reglas de negocio relacionadas con facturas, totales y carga de datos.    
     obtener_todas_facturas,
     obtener_factura_por_id,
     obtener_detalles_factura,
@@ -31,6 +34,77 @@ def formatear_cantidad(cantidad):
     if float(cantidad).is_integer():
         return str(int(cantidad))
     return f"{cantidad:.3f}".rstrip("0").rstrip(".")
+
+
+# ---------------------------------------------------
+# Devuelve un resumen sencillo de los totales de la venta
+# ---------------------------------------------------
+def calcular_resumen_venta(productos):
+    subtotal_total = calcular_total(productos)
+    descuento_valor = 0
+    return {
+        "subtotal": subtotal_total,
+        "descuento": descuento_valor,
+        "total": subtotal_total - descuento_valor,
+    }
+
+
+# ---------------------------------------------------
+# Prepara un producto para agregarse a la venta con
+# cantidad y subtotal calculados
+# ---------------------------------------------------
+def preparar_producto_venta(producto, cantidad=None):
+    producto_venta = dict(producto)
+    cantidad_valor = float(cantidad if cantidad is not None else producto_venta.get("cantidad", 1))
+    producto_venta["cantidad"] = cantidad_valor
+    producto_venta["subtotal"] = cantidad_valor * float(producto_venta.get("precio", 0))
+    return producto_venta
+
+
+# ---------------------------------------------------
+# Actualiza la cantidad y el subtotal de un producto
+# ---------------------------------------------------
+def actualizar_cantidad_producto(producto, nueva_cantidad):
+    producto["cantidad"] = float(nueva_cantidad)
+    producto["subtotal"] = float(producto["cantidad"]) * float(producto.get("precio", 0))
+    return producto
+
+
+# ---------------------------------------------------
+# Agrega un producto a la lista de venta
+# ---------------------------------------------------
+def agregar_producto_a_venta(productos, producto):
+    producto_preparado = preparar_producto_venta(producto)
+    productos.append(producto_preparado)
+    return producto_preparado
+
+
+# ---------------------------------------------------
+# Elimina un producto de la lista de venta
+# ---------------------------------------------------
+def quitar_producto_de_venta(productos, index):
+    if 0 <= index < len(productos):
+        productos.pop(index)
+    return productos
+
+
+# ---------------------------------------------------
+# Calcula el stock restante luego de agregar una cantidad
+# ---------------------------------------------------
+def obtener_stock_restante(producto):
+    try:
+        return float(producto.get("stock", 0)) - float(producto.get("cantidad", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+# ---------------------------------------------------
+# Formatea el stock para mostrarlo sin decimales innecesarios
+# ---------------------------------------------------
+def formatear_stock(stock):
+    if isinstance(stock, float) and stock.is_integer():
+        return str(int(stock))
+    return str(stock)
 
 
 # ---------------------------------------------------

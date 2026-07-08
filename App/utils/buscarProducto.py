@@ -2,6 +2,7 @@ import asyncio
 import flet as ft
 from models.ventasModel import buscar_producto
 
+# Utilidad para buscar productos desde una ventana emergente dentro de la app.
 
 # =========================================================
 # VISTA PARA BUSCAR Y SELECCIONAR PRODUCTOS

@@ -1,5 +1,5 @@
 # VISTA PARA CONSULTA DE FACTURAS
-
+# Pantalla para ver, filtrar y consultar documentos del sistema.
 import flet as ft
 import asyncio
 from datetime import datetime
@@ -226,8 +226,6 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         try:
             if _es_modo_detallado():
                 documentos = filtrar_documentos(tipo="VENTAS DETALLADAS")
-                print(f"[DEBUG] detallado → {type(documentos)} con "
-                    f"{len(documentos) if documentos else 0} elementos")
                 _pintar_detallado(documentos)
             else:
                 documentos = listar_documentos()

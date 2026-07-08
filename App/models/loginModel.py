@@ -1,5 +1,6 @@
 from database.bd import conectar
 
+# Modelo para autenticación de usuarios.
 
 # Esta función verifica si el usuario existe en la base de datos
 def iniciar_sesion(usuario, password):

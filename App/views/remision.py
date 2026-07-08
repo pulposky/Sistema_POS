@@ -11,7 +11,7 @@ from utils.abrirNuevaVentana import abrir_nueva_instancia
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR REMISIONES
 # =========================================================
-
+# Pantalla para gestionar remisiones y generar sus documentos.
 def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 #------------------- DATOS -----------------
 
@@ -124,11 +124,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # Cantidad que el usuario quiere agregar
         cantidad = producto.get("cantidad", 1)
 
-        producto["subtotal"] = (
-            producto["cantidad"] * producto["precio"]
-        )
-
-        productos.append(producto)
+        producto = remision_controller.agregar_producto_a_remision(productos, producto)
 
         cantidad_texto = remision_controller.formatear_cantidad(
             cantidad
@@ -305,10 +301,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         def guardar(e):
             try:
                 nueva_cantidad = float(campo.value)
-                producto["cantidad"] = nueva_cantidad
-                producto["subtotal"] = (
-                    nueva_cantidad * float(producto["precio"])
-                )
+                remision_controller.actualizar_cantidad_producto_remision(producto, nueva_cantidad)
                 tabla_productos.rows[index].cells[2] = ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(

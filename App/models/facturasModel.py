@@ -1,5 +1,6 @@
 from database.bd import conectar
 
+# Modelo para consultar documentos y movimientos del sistema.
 
 def obtener_documentos():
     documentos = []

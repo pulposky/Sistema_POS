@@ -1,6 +1,8 @@
 from models.facturasModel import obtener_documentos, obtener_ventas_detalladas
 from datetime import datetime
 
+# Controlador para consultas de documentos.
+# Aplica filtros y organiza la información mostrada en la vista de facturas.
 def listar_documentos():
     return obtener_documentos()
 

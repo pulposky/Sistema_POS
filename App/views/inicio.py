@@ -1,5 +1,6 @@
 import flet as ft
 
+# Vista inicial del sistema antes de entrar al menú principal.
 # Vista inicial del sistema
 def inicio_view(pagina: ft.Page, ir_a_login):
 

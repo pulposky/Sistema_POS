@@ -1,5 +1,7 @@
 from database.bd import conectar
 
+# Modelo de compras.
+# Contiene las operaciones de base de datos para compras y proveedores.
 def buscar_proveedor(texto):
     conexion = conectar()
     cursor = conexion.cursor(dictionary=True)

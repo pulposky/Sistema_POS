@@ -3,6 +3,7 @@ from pathlib import Path
 
 import flet as ft
 
+# Utilidad para exportar datos de una tabla a un archivo Excel.
 
 def mostrar_mensaje(pagina, mensaje, color=ft.Colors.GREEN):
     snack = ft.SnackBar(

@@ -13,7 +13,7 @@ from utils.abrirNuevaVentana import abrir_nueva_instancia
 # =========================================================
 # VISTA PRINCIPAL PARA COMPRAS
 # =========================================================
-
+# Pantalla para registrar compras y consultar las ya guardadas.
 def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Datos de la compra
     productos = []
@@ -77,10 +77,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         def guardar(e):
             try:
                 nueva_cantidad = float(campo.value)
-                producto["cantidad"] = nueva_cantidad
-                producto["subtotal"] = (
-                    nueva_cantidad * float(producto["precio"])
-                )
+                compras_controller.actualizar_cantidad_producto_compra(producto, nueva_cantidad)
                 tabla_productos.rows[index].cells[2] = ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(
@@ -134,10 +131,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         if modo_consulta:
             return
 
-        cantidad = producto.get("cantidad", 1)
-
-        producto["subtotal"] = float(producto.get("cantidad", 1)) * float(producto.get("precio", 0))
-        productos.append(producto)
+        producto = compras_controller.agregar_producto_a_compra(productos, producto)
         refrescar_tabla()
         actualizar_totales()
 

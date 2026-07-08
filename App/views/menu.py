@@ -1,5 +1,7 @@
 import flet as ft
 
+# Vista del menú principal.
+# Desde aquí se accede a ventas, compras, remisiones y otras opciones.
 # =========================================================
 # MENU DE MODULOS
 # =========================================================

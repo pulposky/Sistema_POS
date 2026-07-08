@@ -1,5 +1,6 @@
 from database.bd import conectar
 
+# Modelo para consultar productos del inventario.
 
 # =====================================================
 # BUSCAR PRODUCTOS

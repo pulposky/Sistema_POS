@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+# Utilidad para abrir una nueva instancia de la factura o compra en otra ventana.
 import sys
 from pathlib import Path
 

@@ -2,6 +2,7 @@ import asyncio
 import flet as ft
 from models.comprasModel import buscar_proveedor
 
+# Utilidad para buscar proveedores desde la interfaz de compras.
 
 def buscar_proveedor_view(pagina: ft.Page, mostrar_proveedor_seleccionado):
 

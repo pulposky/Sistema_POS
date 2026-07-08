@@ -13,7 +13,7 @@ from utils.abrirNuevaVentana import abrir_nueva_instancia
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR VENTAS
 # =========================================================
-
+# Aquí se construye la interfaz de ventas y se conectan los eventos con el controlador.
 def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 #------------------- DATOS -----------------
 
@@ -73,13 +73,11 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Actualizo subtotal, descuento y total segun los productos agregados
     def actualizar_totales():
 
-        subtotal_total = ventas_controller.calcular_total(productos)
-        descuento_valor = 0
-        total_valor = subtotal_total - descuento_valor
+        resumen = ventas_controller.calcular_resumen_venta(productos)
 
-        subtotal.value = f"Subtotal: ${subtotal_total:,.2f}"
-        descuento.value = f"Descuento: ${descuento_valor:,.2f}"
-        total.value = f"Total: ${total_valor:,.2f}"
+        subtotal.value = f"Subtotal: ${resumen['subtotal']:,.2f}"
+        descuento.value = f"Descuento: ${resumen['descuento']:,.2f}"
+        total.value = f"Total: ${resumen['total']:,.2f}"
         pagina.update()
 
     def editar_cantidad(index):
@@ -96,10 +94,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         def guardar(e):
             try:
                 nueva_cantidad = float(campo.value)
-                producto["cantidad"] = nueva_cantidad
-                producto["subtotal"] = (
-                    nueva_cantidad * float(producto["precio"])
-                )
+                ventas_controller.actualizar_cantidad_producto(producto, nueva_cantidad)
                 tabla_productos.rows[index].cells[2] = ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(
@@ -129,15 +124,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
 
     def obtener_stock_restante(producto):
-        try:
-            return float(producto.get("stock", 0)) - float(producto.get("cantidad", 0))
-        except (TypeError, ValueError):
-            return 0
+        return ventas_controller.obtener_stock_restante(producto)
 
     def formatear_stock(stock):
-        if isinstance(stock, float) and stock.is_integer():
-            return str(int(stock))
-        return str(stock)
+        return ventas_controller.formatear_stock(stock)
 
     def crear_celda_acciones(producto, index, deshabilitado=False):
         stock_restante = obtener_stock_restante(producto)
@@ -176,7 +166,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         if modo_consulta:
             return
 
-        productos.pop(index)
+        ventas_controller.quitar_producto_de_venta(productos, index)
 
         tabla_productos.rows.clear()
 
@@ -247,10 +237,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # LO AGREGO NORMAL
         # ---------------------------------------------
 
-        producto["subtotal"] = (
-            float(producto["cantidad"]) * float(producto["precio"])
-        )
-        productos.append(producto)
+        producto = ventas_controller.agregar_producto_a_venta(productos, producto)
         cantidad_texto = ventas_controller.formatear_cantidad(
             cantidad
         )
