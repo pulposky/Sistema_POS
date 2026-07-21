@@ -1,6 +1,6 @@
 import asyncio
 import flet as ft
-from models.ventasModel import buscar_producto
+from models.ventasModel import buscar_producto, actualizar_producto
 
 # Utilidad para buscar productos desde una ventana emergente dentro de la app.
 
@@ -17,11 +17,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Posicion del producto seleccionado con el teclado
     index_seleccionado = 0
 
-    # Fase actual del dialogo: buscar, resultados o cantidad
+    # Fase actual del dialogo: buscar, resultados, opciones, edición o cantidad
     fase = "buscar"
 
     # Producto que el usuario selecciona antes de escribir cantidad
     producto_seleccionado = None
+    producto_datos_editables = {}
 
     # Guardo el teclado anterior para restaurarlo al cerrar el dialogo
     teclado_anterior = pagina.on_keyboard_event
@@ -73,6 +74,53 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Texto para mostrar mensajes de ayuda o errores
     mensaje = ft.Text("", size=12, color="red")
 
+    campo_nombre = ft.TextField(label="Nombre", width=300)
+    campo_unidad = ft.TextField(label="Unidad", width=300)
+    campo_lugar = ft.TextField(label="Empresa/Lugar", width=300)
+    campo_precio = ft.TextField(label="Precio", width=300)
+    campo_stock = ft.TextField(label="Stock", width=300)
+
+    info_producto = ft.Column(
+        [
+            ft.Text("Datos del producto seleccionado", size=14, weight="bold"),
+            ft.Text("", size=13),
+            ft.Text("", size=13),
+            ft.Text("", size=13),
+            ft.Text("", size=13),
+            ft.Text("", size=13),
+        ],
+        visible=False,
+        spacing=6,
+    )
+
+    form_edicion = ft.Column(
+        [
+            ft.Text("Verificar y editar datos del producto", size=13, weight="bold"),
+            campo_nombre, campo_unidad, campo_lugar, campo_precio, campo_stock,
+        ],
+        visible=False,
+        spacing=10,
+    )
+
+    botones_opciones = ft.Row(
+        [
+            ft.Button("Usar sin editar ✓", width=200, bgcolor=ft.Colors.AMBER,
+                      on_click=lambda _: usar_producto_sin_editar()),
+            ft.Button("Editar →", width=150, bgcolor=ft.Colors.BLUE,
+                      color=ft.Colors.WHITE,
+                      on_click=lambda _: mostrar_formulario_edicion()),
+        ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
+    )
+
+    botones_edicion = ft.Row(
+        [
+            ft.Button("Confirmar ✓", width=190, bgcolor=ft.Colors.GREEN,
+                      on_click=lambda _: confirmar_producto_editado()),
+            ft.Button("Cancelar ✗", width=150, bgcolor=ft.Colors.RED,
+                      on_click=lambda _: volver_a_resultados()),
+        ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
+    )
+
     # -------- FUNCIONES --------
 
     # Limpio los resultados cuando el usuario cambia la busqueda
@@ -87,9 +135,16 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
         # Activo otra vez el campo por si estaba bloqueado
         campo_busqueda.disabled = False
+        campo_busqueda.visible = True
 
         # Limpio la lista visual
         resultados_container.controls.clear()
+        resultados_container.visible = True
+        info_producto.visible = False
+        form_edicion.visible = False
+        botones_opciones.visible = False
+        botones_edicion.visible = False
+        campo_cantidad.visible = False
         mensaje.value = "Presiona Enter para buscar"
         pagina.update()
 
@@ -262,9 +317,9 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             mensaje.value = f"Error en busqueda: {str(err)}"
             pagina.update()
 
-    # Selecciono un producto y paso a pedir cantidad
+    # Selecciono un producto y muestro sus opciones
     def seleccionar_producto(posicion=None):
-        nonlocal producto_seleccionado, fase, index_seleccionado
+        nonlocal producto_seleccionado, producto_datos_editables, fase, index_seleccionado
 
         # Si llega una posicion por click la uso como seleccion actual
         if posicion is not None:
@@ -276,10 +331,91 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
         # Guardo el producto seleccionado
         producto_seleccionado = productos_encontrados[index_seleccionado]
+        producto_datos_editables = producto_seleccionado.copy()
+
+        mostrar_opciones_edicion()
+
+    def mostrar_opciones_edicion():
+        nonlocal fase
+
+        fase = "opciones"
+        info_producto.controls[1].value = f"Nombre: {producto_datos_editables.get('nombre', '')}"
+        info_producto.controls[2].value = f"Unidad: {producto_datos_editables.get('unidad', '')}"
+        info_producto.controls[3].value = f"Empresa/Lugar: {producto_datos_editables.get('lugar', '')}"
+        info_producto.controls[4].value = f"Precio: ${producto_datos_editables.get('precio', 0)}"
+        info_producto.controls[5].value = f"Stock: {producto_datos_editables.get('stock', 0)}"
+
+        campo_busqueda.visible = False
+        resultados_container.visible = False
+        mensaje.value = ""
+        info_producto.visible = True
+        botones_opciones.visible = True
+        pagina.update()
+
+    def mostrar_formulario_edicion():
+        nonlocal fase
+
+        fase = "edicion"
+        campo_nombre.value = producto_datos_editables.get('nombre', '')
+        campo_unidad.value = producto_datos_editables.get('unidad', '')
+        campo_lugar.value = producto_datos_editables.get('lugar', '')
+        campo_precio.value = str(producto_datos_editables.get('precio', 0))
+        campo_stock.value = str(producto_datos_editables.get('stock', 0))
+
+        info_producto.visible = False
+        botones_opciones.visible = False
+        form_edicion.visible = True
+        botones_edicion.visible = True
+        pagina.update()
+        pagina.run_task(enfocar_campo, campo_nombre)
+
+    async def enfocar_campo(campo):
+        await campo.focus()
+
+    def confirmar_producto_editado():
+        nonlocal producto_seleccionado
+        try:
+            producto_datos_editables['nombre'] = campo_nombre.value.strip()
+            producto_datos_editables['unidad'] = campo_unidad.value.strip()
+            producto_datos_editables['lugar'] = campo_lugar.value.strip()
+            producto_datos_editables['precio'] = float(campo_precio.value.replace(',', '.'))
+            producto_datos_editables['stock'] = float(campo_stock.value.replace(',', '.'))
+
+            if not producto_datos_editables['nombre'] or not producto_datos_editables['unidad']:
+                raise ValueError("Nombre y unidad son obligatorios")
+
+            actualizar_producto(producto_datos_editables)
+            producto_seleccionado = producto_datos_editables.copy()
+            mostrar_cantidad()
+        except ValueError as err:
+            mensaje.value = str(err) or "Precio y stock deben ser números válidos"
+            pagina.update()
+
+    def usar_producto_sin_editar():
+        mostrar_cantidad()
+
+    def volver_a_resultados():
+        nonlocal fase
+        fase = "resultados"
+        form_edicion.visible = False
+        botones_edicion.visible = False
+        info_producto.visible = False
+        botones_opciones.visible = False
+        campo_busqueda.visible = True
+        resultados_container.visible = True
+        pagina.update()
+        pagina.run_task(enfocar_producto, index_seleccionado)
+
+    def mostrar_cantidad():
+        nonlocal fase
 
         # Oculto busqueda y resultados
         campo_busqueda.visible = False
         resultados_container.visible = False
+        info_producto.visible = False
+        botones_opciones.visible = False
+        form_edicion.visible = False
+        botones_edicion.visible = False
 
         # Muestro el campo para cantidad
         unidad = producto_seleccionado.get('unidad', 'UND')
@@ -387,9 +523,13 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             campo_busqueda,
             ft.Text("Resultados:", size=13, weight="bold"),
             resultados_container,
+            info_producto,
+            botones_opciones,
+            form_edicion,
+            botones_edicion,
             campo_cantidad,
             mensaje
-        ], height=350, width=400),
+        ], height=560, width=400),
         on_dismiss=cancelar
     )
 

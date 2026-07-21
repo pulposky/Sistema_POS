@@ -19,7 +19,6 @@ from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 # de todos los productos agregados a la venta
 # ---------------------------------------------------
 def calcular_total(productos):
-
     return sum(
         p.get("subtotal", 0)
         for p in productos
@@ -127,6 +126,7 @@ def confirmar_factura(pago, productos, cliente, usuario):
         "id_usuario": usuario.get("id_usuario", 1),
         "dinero_recibido": pago["dinero_recibido"],
         "cambio": pago["cambio"],
+        "notas": pago.get("notas", ""),
     }
 
     id_factura = guardar_factura(

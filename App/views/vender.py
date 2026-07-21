@@ -67,6 +67,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     numeroFactura = ft.Text("Número de factura: 0001", size=17, weight="bold")
     texto_fecha = ft.Text("", size=13, weight="bold", visible=False)
     usuarioFactura = ft.Text("", size=13, weight="bold", visible=False)
+    notaFactura = ft.Text("", size=13, visible=False)
 
     # ---------------- FUNCIONES ----------------
 
@@ -345,6 +346,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         usuarioFactura.visible = False
         texto_fecha.value = ""
         texto_fecha.visible = False
+        notaFactura.value = ""
+        notaFactura.visible = False
 
         numeroFactura.value = "Número de factura: Nueva"
         numeroFactura.color = ft.Colors.BLACK
@@ -399,6 +402,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             f"Vendido por: {factura.get('nombre_usuario', 'Sin usuario')}"
         )
         usuarioFactura.visible = True
+        notas = (factura.get("notas") or "").strip()
+        notaFactura.value = f"Nota: {notas}"
+        notaFactura.visible = bool(notas)
         if datos["factura"]["estado"] == "ANULADA":
 
             numeroFactura.value = (
@@ -853,6 +859,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
                 texto_fecha,
                 usuarioFactura,
+                notaFactura,
 
 
                 ft.Row(

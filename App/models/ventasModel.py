@@ -80,6 +80,39 @@ def actualizar_cliente(cliente_datos):
 
 
 # =====================================================
+# ACTUALIZAR PRODUCTO
+# =====================================================
+
+def actualizar_producto(producto_datos):
+
+    conexion = conectar()
+    cursor = conexion.cursor()
+    sql = """
+        UPDATE producto
+        SET
+            nombre=%s,
+            unidad=%s,
+            lugar=%s,
+            precio=%s,
+            stock=%s
+        WHERE id_producto=%s
+    """
+    cursor.execute(sql, (
+        producto_datos.get('nombre', ''),
+        producto_datos.get('unidad', ''),
+        producto_datos.get('lugar', ''),
+        producto_datos.get('precio', 0),
+        producto_datos.get('stock', 0),
+        producto_datos.get('id_producto') or producto_datos.get('id')
+    ))
+
+    conexion.commit()
+    cursor.close()
+    conexion.close()
+    return True
+
+
+# =====================================================
 # OBTENER TODAS LAS FACTURAS
 # =====================================================
 
@@ -98,7 +131,8 @@ def obtener_todas_facturas():
             id_cliente,
             id_usuario,
             dinero_recibido,
-            cambio
+            cambio,
+            notas
         FROM venta
         ORDER BY id_venta DESC
     """
@@ -131,7 +165,8 @@ def obtener_factura_por_id(id_venta):
             v.id_usuario,
             u.nombre AS nombre_usuario,
             v.dinero_recibido,
-            v.cambio
+            v.cambio,
+            v.notas
         FROM venta v
         INNER JOIN usuarios u
             ON v.id_usuario = u.id_usuario
@@ -285,10 +320,11 @@ def guardar_factura(factura_datos, detalles):
                 id_cliente,
                 id_usuario,
                 dinero_recibido,
-                cambio
+                cambio,
+                notas
             )
 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         cursor.execute(sql_venta, (
@@ -299,7 +335,8 @@ def guardar_factura(factura_datos, detalles):
             factura_datos.get('id_cliente'),
             factura_datos.get('id_usuario', 1),
             factura_datos.get('dinero_recibido', 0),
-            factura_datos.get('cambio', 0)
+            factura_datos.get('cambio', 0),
+            factura_datos.get('notas', '')
 
         ))
         id_venta = cursor.lastrowid

@@ -67,6 +67,15 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         visible=False
     )
 
+    campo_nota = ft.TextField(
+        label="Nota",
+        width=320,
+        multiline=True,
+        min_lines=1,
+        max_lines=3,
+        visible=False,
+    )
+
     # Mensaje para transferencia pura
     texto_transferencia = ft.Text(
         "✓ Pago por transferencia por el total",
@@ -108,6 +117,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         texto_transferencia.visible  = False
         fila_efectivo.visible        = False
         fila_transferencia.visible   = False
+        campo_nota.visible           = False
+        campo_nota.value             = ""
 
         if metodo_actual == "Efectivo":
             campos_pago.visible      = True
@@ -124,6 +135,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
 
         elif metodo_actual == "Credito":
             texto_credito.visible = True
+            campo_nota.visible = True
 
         calcular()
         pagina.update()
@@ -138,7 +150,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     "dinero_recibido": 0,
                     "efectivo":        0,
                     "transferencia":   0,
-                    "cambio":          0
+                    "cambio":          0,
+                    "notas":           (campo_nota.value or "").strip(),
                 })
             except Exception as err:
                 print(f"[metodo_pago] Error en callback Credito: {err}")
@@ -253,6 +266,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     ),
                     campos_pago,
                     texto_credito,
+                    campo_nota,
                     texto_transferencia,
                 ],
                 spacing=10,
