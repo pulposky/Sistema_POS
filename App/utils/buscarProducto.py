@@ -1,4 +1,3 @@
-import asyncio
 import flet as ft
 from models.ventasModel import buscar_producto, actualizar_producto
 
@@ -68,7 +67,10 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Contenedor donde se muestran los botones de productos encontrados
     resultados_container = ft.Column(
         scroll=ft.ScrollMode.AUTO,
-        height=200
+        # Sin una altura fija la lista puede crecer para mostrar todas las
+        # coincidencias. Antes quedaba limitada a unas cinco filas y obligaba
+        # a recorrer el resto con las flechas.
+        spacing=4,
     )
 
     # Texto para mostrar mensajes de ayuda o errores
@@ -105,19 +107,19 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     botones_opciones = ft.Row(
         [
             ft.Button("Usar sin editar ✓", width=200, bgcolor=ft.Colors.AMBER,
-                      on_click=lambda _: usar_producto_sin_editar()),
+                    on_click=lambda _: usar_producto_sin_editar()),
             ft.Button("Editar →", width=150, bgcolor=ft.Colors.BLUE,
-                      color=ft.Colors.WHITE,
-                      on_click=lambda _: mostrar_formulario_edicion()),
+                    color=ft.Colors.WHITE,
+                    on_click=lambda _: mostrar_formulario_edicion()),
         ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
     )
 
     botones_edicion = ft.Row(
         [
             ft.Button("Confirmar ✓", width=190, bgcolor=ft.Colors.GREEN,
-                      on_click=lambda _: confirmar_producto_editado()),
+                    on_click=lambda _: confirmar_producto_editado()),
             ft.Button("Cancelar ✗", width=150, bgcolor=ft.Colors.RED,
-                      on_click=lambda _: volver_a_resultados()),
+                    on_click=lambda _: volver_a_resultados()),
         ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
     )
 
@@ -151,13 +153,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Coloco el foco en un boton de producto
     async def enfocar_producto(posicion=0):
         if botones_resultado and 0 <= posicion < len(botones_resultado):
-            await botones_resultado[posicion].focus()
-
-    # Mantengo el foco dentro de los productos cuando ya hay resultados
-    async def mantener_foco_productos():
-        await asyncio.sleep(0.05)
-        if fase == "resultados" and not dialogo_cerrado:
-            await enfocar_producto(index_seleccionado)
+            try:
+                await botones_resultado[posicion].focus()
+            except RuntimeError:
+                # La página o el diálogo se cerró mientras se esperaba el
+                # foco. No hay nada que actualizar en ese caso.
+                return
 
     # Marco como seleccionado el producto que recibe foco o hover
     def marcar_producto(posicion):
@@ -167,10 +168,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         if fase != "resultados" or not productos_encontrados:
             return
 
-        # Si cambia la posicion, vuelvo a pintar los botones
+        # No se vuelve a pintar toda la lista al cambiar el foco. Al mantener
+        # una flecha pulsada, redibujar los botones invalida sus referencias y
+        # genera tareas de foco pendientes.
         if index_seleccionado != posicion:
             index_seleccionado = posicion
-            renderizar_resultados()
 
     # Cuando el mouse pasa por un producto lo marco y lo enfoco
     def hover_producto(e, posicion):
@@ -212,8 +214,6 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         # Creo un boton por cada producto encontrado
         for i, prod in enumerate(productos_encontrados):
 
-            # Verifico si este es el producto seleccionado
-            seleccionado = i == index_seleccionado
             unidad = prod.get('unidad', 'UND')
             detalle_producto = (
                 f"${prod.get('precio', 0)} / {unidad}"
@@ -228,30 +228,31 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
                     ft.Text(
                         prod.get('nombre', 'Sin nombre'),
                         expand=True,
-                        color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK
+                        color=ft.Colors.BLACK
                     ),
                     ft.Text(
                         detalle_producto,
                         size=12,
                         width=110,
-                        color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK
+                        color=ft.Colors.BLACK
                     )
                 ]),
                 width=380,
-                bgcolor=ft.Colors.BLUE if seleccionado else ft.Colors.WHITE,
-                color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK,
+                height=30,
+                bgcolor=ft.Colors.WHITE,
+                color=ft.Colors.BLACK,
 
                 # Estilo azul cuando el boton tiene hover o foco
                 style=ft.ButtonStyle(
                     bgcolor={
                         ft.ControlState.HOVERED: ft.Colors.BLUE,
                         ft.ControlState.FOCUSED: ft.Colors.BLUE,
-                        ft.ControlState.DEFAULT: ft.Colors.BLUE if seleccionado else ft.Colors.WHITE,
+                        ft.ControlState.DEFAULT: ft.Colors.WHITE,
                     },
                     color={
                         ft.ControlState.HOVERED: ft.Colors.WHITE,
                         ft.ControlState.FOCUSED: ft.Colors.WHITE,
-                        ft.ControlState.DEFAULT: ft.Colors.WHITE if seleccionado else ft.Colors.BLACK,
+                        ft.ControlState.DEFAULT: ft.Colors.BLACK,
                     },
                     overlay_color=ft.Colors.BLUE_700,
                     shape=ft.RoundedRectangleBorder(radius=5),
@@ -259,7 +260,6 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
                 # Eventos del boton de producto
                 on_focus=lambda _, pos=i: marcar_producto(pos),
-                on_blur=lambda _: pagina.run_task(mantener_foco_productos),
                 on_hover=lambda e, pos=i: hover_producto(e, pos),
                 on_click=lambda _, pos=i: seleccionar_producto(pos)
             )
@@ -307,10 +307,6 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
             # Pinto la lista de productos
             renderizar_resultados()
-
-            # Enfoco el primer producto encontrado
-            if productos_encontrados:
-                pagina.run_task(enfocar_producto, 0)
 
         except Exception as err:
             # Muestro errores de la busqueda
@@ -497,18 +493,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             cancelar()
             return
 
-        # En resultados las flechas navegan entre botones
+        # En resultados no se redibuja la lista al usar flechas. Con muchas
+        # coincidencias ese redibujado podía desestabilizar el diálogo; los
+        # productos quedan visibles para seleccionarlos directamente con clic.
         if fase == "resultados":
-
-            # Flecha abajo mueve al siguiente producto
-            if e.key == "ArrowDown":
-                if productos_encontrados:
-                    mover_foco_producto(index_seleccionado + 1)
-
-            # Flecha arriba mueve al producto anterior
-            elif e.key == "ArrowUp":
-                if productos_encontrados:
-                    mover_foco_producto(index_seleccionado - 1)
+            return
 
     # Teclado temporal de la pagina mientras el dialogo esta abierto
     async def teclado_pagina(e: ft.KeyboardEvent):
@@ -529,7 +518,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             botones_edicion,
             campo_cantidad,
             mensaje
-        ], height=560, width=400),
+        ], height=650, width=400, scroll=ft.ScrollMode.AUTO),
         on_dismiss=cancelar
     )
 

@@ -63,7 +63,7 @@ def inicio_view(pagina: ft.Page, ir_a_login):
         async def descargar_usuario(e=None):
             dialogo_ayuda.open = False
             pagina.update()
-            await descargar_manual("Manual.txt", "Manual de usuario")
+            await descargar_manual("Manual_de_Usuario_Sistema_POS.pdf", "Manual de usuario")
 
         async def descargar_tecnico(e=None):
             dialogo_ayuda.open = False
