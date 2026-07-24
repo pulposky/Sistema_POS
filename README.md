@@ -115,12 +115,12 @@ Proyecto/
 │   ├── main.py              # Punto de entrada principal
 │   ├── requirements.txt     # Librerías dependientes
 │   ├── database/            # Conexión a MySQL
+|   ├── docs/                # Manuales (tecnico y de usuario)
 │   ├── models/              # Consultas y persistencia de datos (SQL)
 │   ├── controllers/         # Reglas y lógica de negocio
 │   ├── views/               # Interfaces de usuario con Flet
 │   ├── routers/             # Navegación y enrutamiento entre pantallas
 │   └── utils/               # Generador PDF, reportes Excel y modales
-├── MANUAL_TECNICO.txt       # Manual técnico detallado en texto plano
 └── README.md                # Guía de presentación e instalación para GitHub
 ```
 
@@ -128,4 +128,4 @@ Proyecto/
 
 ## 👥 Contribuciones y Soporte
 
-Para más detalles sobre la arquitectura interna, modelos de datos y flujo de trabajo, consulta el archivo `MANUAL_TECNICO.txt` incluido en la raíz del proyecto.
+Para más detalles sobre la arquitectura interna, modelos de datos y flujo de trabajo, consulta el archivo `MANUAL_TECNICO.pdf`
