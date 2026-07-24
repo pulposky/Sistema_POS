@@ -90,7 +90,13 @@ def confirmar_compra(proveedor, productos, usuario):
         "id_compra": id_compra,
         "ruta_pdf": ruta_pdf,
         "usuario_factura": {
-            "nombre": compra_datos["nombre_usuario"]
+            # El nombre pertenece a la sesión del usuario, no a los datos
+            # almacenados de la compra.
+            "nombre": (
+                usuario.get("nombre")
+                or usuario.get("nombre_usuario")
+                or "Usuario"
+            )
         }
     }
 

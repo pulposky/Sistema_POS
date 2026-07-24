@@ -43,7 +43,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
     # Campo donde el usuario escribe el nombre del cliente
     campo_busqueda = ft.TextField(
         label="Buscar cliente por nombre o cédula",
-        width=300,
+        width=340,
         autofocus=True,
 
         # Cuando cambia el texto limpio los resultados anteriores
@@ -59,18 +59,18 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
     # Contenedor donde se muestran los botones de clientes encontrados
     resultados_container = ft.Column(
         scroll=ft.ScrollMode.AUTO,
-        height=200
+        spacing=4,
     )
 
     # Texto para mostrar mensajes de ayuda o errores
     mensaje = ft.Text("", size=12, color="red")
 
     # Campos editables para los datos del cliente
-    campo_nombre = ft.TextField(label="Nombre", width=300)
-    campo_documento = ft.TextField(label="Documento", width=300)
-    campo_rol = ft.TextField(label="Rol/Cargo", width=300)
-    campo_direccion = ft.TextField(label="direccion", width=300)
-    campo_telefono = ft.TextField(label="Teléfono", width=300)
+    campo_nombre = ft.TextField(label="Nombre", width=340)
+    campo_documento = ft.TextField(label="Documento", width=340)
+    campo_rol = ft.TextField(label="Rol/Cargo", width=340)
+    campo_direccion = ft.TextField(label="direccion", width=340)
+    campo_telefono = ft.TextField(label="Teléfono", width=340)
 
     # Contenedor para los campos de edición
     form_edicion = ft.Column(
@@ -104,13 +104,25 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
     # Botones para confirmar o editar
     btn_confirmar_edicion = ft.Button(
         "Confirmar ✓",
-        width=190,
+        width=230,
         bgcolor=ft.Colors.GREEN,
-        color=ft.Colors.BLACK,
+        color=ft.Colors.WHITE,
         style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.GREEN,
+                ft.ControlState.HOVERED: ft.Colors.GREEN_800,
+                ft.ControlState.FOCUSED: ft.Colors.GREEN_800,
+            },
+            color=ft.Colors.WHITE,
             overlay_color=ft.Colors.GREEN_200,
+            side={
+                ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+            },
             elevation={
-                ft.ControlState.HOVERED: 10
+                ft.ControlState.DEFAULT: 2,
+                ft.ControlState.HOVERED: 8,
+                ft.ControlState.FOCUSED: 8,
             },
             animation_duration=200
         ),
@@ -119,13 +131,25 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
     btn_cancelar_edicion = ft.Button(
         "Cancelar ✗",
-        width=150,
+        width=180,
         bgcolor=ft.Colors.RED,
-        color=ft.Colors.BLACK,
+        color=ft.Colors.WHITE,
         style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.RED,
+                ft.ControlState.HOVERED: ft.Colors.RED_800,
+                ft.ControlState.FOCUSED: ft.Colors.RED_800,
+            },
+            color=ft.Colors.WHITE,
             overlay_color=ft.Colors.RED_200,
+            side={
+                ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+            },
             elevation={
-                ft.ControlState.HOVERED: 10
+                ft.ControlState.DEFAULT: 2,
+                ft.ControlState.HOVERED: 8,
+                ft.ControlState.FOCUSED: 8,
             },
             animation_duration=200
         ),
@@ -134,13 +158,29 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
     btn_usar_sin_editar = ft.Button(
         "Usar sin editar ✓",
-        width=200,
+        width=230,
         bgcolor=ft.Colors.AMBER,
         color=ft.Colors.BLACK,
         style=ft.ButtonStyle(
+            bgcolor={
+                ft.ControlState.DEFAULT: ft.Colors.AMBER,
+                ft.ControlState.HOVERED: ft.Colors.AMBER_800,
+                ft.ControlState.FOCUSED: ft.Colors.AMBER_800,
+            },
+            color={
+                ft.ControlState.DEFAULT: ft.Colors.BLACK,
+                ft.ControlState.HOVERED: ft.Colors.WHITE,
+                ft.ControlState.FOCUSED: ft.Colors.WHITE,
+            },
             overlay_color=ft.Colors.AMBER_200,
+            side={
+                ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+            },
             elevation={
-                ft.ControlState.HOVERED: 10
+                ft.ControlState.DEFAULT: 2,
+                ft.ControlState.HOVERED: 8,
+                ft.ControlState.FOCUSED: 8,
             },
             animation_duration=200
         ),
@@ -160,13 +200,24 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
             ft.Button(
                 "Editar →",
-                width=150,
+                width=180,
                 bgcolor=ft.Colors.BLUE,
                 color=ft.Colors.WHITE,
                 style=ft.ButtonStyle(
+                    bgcolor={
+                        ft.ControlState.DEFAULT: ft.Colors.BLUE,
+                        ft.ControlState.HOVERED: ft.Colors.BLUE_900,
+                        ft.ControlState.FOCUSED: ft.Colors.BLUE_900,
+                    },
                     overlay_color=ft.Colors.BLUE_200,
+                    side={
+                        ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                        ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+                    },
                     elevation={
-                        ft.ControlState.HOVERED: 10
+                        ft.ControlState.DEFAULT: 2,
+                        ft.ControlState.HOVERED: 8,
+                        ft.ControlState.FOCUSED: 8,
                     },
                     animation_duration=200
                 ),
@@ -207,13 +258,10 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
     # Coloco el foco en un boton de cliente
     async def enfocar_cliente(posicion=0):
         if botones_clientes and 0 <= posicion < len(botones_clientes):
-            await botones_clientes[posicion].focus()
-
-    # Mantengo el foco dentro de los clientes cuando ya hay resultados
-    async def mantener_foco_clientes():
-        await asyncio.sleep(0.05)
-        if fase == "resultados" and not dialogo_cerrado:
-            await enfocar_cliente(index_seleccionado)
+            try:
+                await botones_clientes[posicion].focus()
+            except RuntimeError:
+                return
 
     # Marco como seleccionado el cliente que recibe foco o hover
     def marcar_cliente(posicion):
@@ -223,10 +271,10 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         if fase != "resultados" or not clientes_encontrados:
             return
 
-        # Si cambia la posicion, vuelvo a pintar los botones
+        # No se vuelve a pintar toda la lista al cambiar el foco. Esto evita
+        # tareas pendientes al mantener una flecha pulsada.
         if index_seleccionado != posicion:
             index_seleccionado = posicion
-            renderizar_resultados()
 
     # Cuando el mouse pasa por un cliente lo marco y lo enfoco
     def hover_cliente(e, posicion):
@@ -268,9 +316,6 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         # Creo un boton por cada cliente encontrado
         for i, cliente in enumerate(clientes_encontrados):
 
-            # Verifico si este es el cliente seleccionado
-            seleccionado = i == index_seleccionado
-
             # Boton del cliente
             btn = ft.Button(
                 content=ft.Row([
@@ -278,30 +323,31 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
                     ft.Text(
                         cliente.get('nombre', 'Sin nombre'),
                         expand=True,
-                        color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK
+                        color=ft.Colors.BLACK
                     ),
                     ft.Text(
                         str(cliente.get('documento', cliente.get('id', ''))),
                         size=12,
                         width=100,
-                        color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK
+                        color=ft.Colors.BLACK
                     )
                 ]),
-                width=380,
-                bgcolor=ft.Colors.BLUE if seleccionado else ft.Colors.WHITE,
-                color=ft.Colors.WHITE if seleccionado else ft.Colors.BLACK,
+                width=440,
+                height=30,
+                bgcolor=ft.Colors.WHITE,
+                color=ft.Colors.BLACK,
 
                 # Estilo azul cuando el boton tiene hover o foco
                 style=ft.ButtonStyle(
                     bgcolor={
                         ft.ControlState.HOVERED: ft.Colors.BLUE,
                         ft.ControlState.FOCUSED: ft.Colors.BLUE,
-                        ft.ControlState.DEFAULT: ft.Colors.BLUE if seleccionado else ft.Colors.WHITE,
+                        ft.ControlState.DEFAULT: ft.Colors.WHITE,
                     },
                     color={
                         ft.ControlState.HOVERED: ft.Colors.WHITE,
                         ft.ControlState.FOCUSED: ft.Colors.WHITE,
-                        ft.ControlState.DEFAULT: ft.Colors.WHITE if seleccionado else ft.Colors.BLACK,
+                        ft.ControlState.DEFAULT: ft.Colors.BLACK,
                     },
                     overlay_color=ft.Colors.BLUE_700,
                     shape=ft.RoundedRectangleBorder(radius=5),
@@ -309,7 +355,6 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
                 # Eventos del boton de cliente
                 on_focus=lambda _, pos=i: marcar_cliente(pos),
-                on_blur=lambda _: pagina.run_task(mantener_foco_clientes),
                 on_hover=lambda e, pos=i: hover_cliente(e, pos),
                 on_click=lambda _, pos=i: seleccionar_cliente(pos)
             )
@@ -357,10 +402,6 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
             # Pinto la lista de clientes
             renderizar_resultados()
-
-            # Enfoco el primer cliente encontrado
-            if clientes_encontrados:
-                pagina.run_task(enfocar_cliente, 0)
 
         except Exception as err:
             # Muestro errores de la busqueda
@@ -543,18 +584,9 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             cancelar()
             return
 
-        # En resultados las flechas navegan entre botones
+        # La lista queda completa y estable para seleccionar con clic.
         if fase == "resultados":
-
-            # Flecha abajo mueve al siguiente cliente
-            if e.key == "ArrowDown":
-                if clientes_encontrados:
-                    mover_foco_cliente(index_seleccionado + 1)
-
-            # Flecha arriba mueve al cliente anterior
-            elif e.key == "ArrowUp":
-                if clientes_encontrados:
-                    mover_foco_cliente(index_seleccionado - 1)
+            return
 
     # Teclado temporal de la pagina mientras el dialogo esta abierto
     async def teclado_pagina(e: ft.KeyboardEvent):
@@ -574,7 +606,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             botones_opciones,
             form_edicion,
             botones_edicion
-        ], height=380, width=400),
+        ], height=650, width=460, scroll=ft.ScrollMode.AUTO),
         on_dismiss=cancelar
     )
 

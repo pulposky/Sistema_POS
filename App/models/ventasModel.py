@@ -397,10 +397,10 @@ def guardar_factura(factura_datos, detalles):
         conexion.rollback()
         cursor.close()
         conexion.close()
-        
+
         print(f"Error al guardar factura: {e}")
         return None
-    
+
 # =====================================================
 # CREAR CLIENTE
 # =====================================================

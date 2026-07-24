@@ -1,13 +1,14 @@
 from datetime import datetime
 from models.remisionesModel import (
-
-# Controlador de remisiones.
-# Mantiene la lógica de preparación, resumen y generación de remisiones.    guardar_remision,
+    guardar_remision,
     obtener_todas_remisiones,
     obtener_remision_por_id,
     obtener_detalles_remision,
     eliminar_remision,
 )
+
+# Controlador de remisiones.
+# Mantiene la lógica de preparación, resumen y generación de remisiones.
 from models.ventasModel import obtener_cliente_por_id, obtener_producto_por_id
 from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 

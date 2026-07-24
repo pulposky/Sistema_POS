@@ -40,7 +40,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Campo donde el usuario escribe el nombre del producto
     campo_busqueda = ft.TextField(
         label="Buscar producto por nombre",
-        width=300,
+        width=340,
         autofocus=True,
 
         # Cuando cambia el texto limpio los resultados anteriores
@@ -76,11 +76,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Texto para mostrar mensajes de ayuda o errores
     mensaje = ft.Text("", size=12, color="red")
 
-    campo_nombre = ft.TextField(label="Nombre", width=300)
-    campo_unidad = ft.TextField(label="Unidad", width=300)
-    campo_lugar = ft.TextField(label="Empresa/Lugar", width=300)
-    campo_precio = ft.TextField(label="Precio", width=300)
-    campo_stock = ft.TextField(label="Stock", width=300)
+    campo_nombre = ft.TextField(label="Nombre", width=340)
+    campo_unidad = ft.TextField(label="Unidad", width=340)
+    campo_lugar = ft.TextField(label="Empresa/Lugar", width=340)
+    campo_precio = ft.TextField(label="Precio", width=340)
+    campo_stock = ft.TextField(label="Stock", width=340)
 
     info_producto = ft.Column(
         [
@@ -106,20 +106,97 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
     botones_opciones = ft.Row(
         [
-            ft.Button("Usar sin editar ✓", width=200, bgcolor=ft.Colors.AMBER,
-                    on_click=lambda _: usar_producto_sin_editar()),
-            ft.Button("Editar →", width=150, bgcolor=ft.Colors.BLUE,
-                    color=ft.Colors.WHITE,
-                    on_click=lambda _: mostrar_formulario_edicion()),
+            ft.Button(
+                      "Usar sin editar ✓", width=230, bgcolor=ft.Colors.AMBER,
+                      color=ft.Colors.BLACK,
+                      style=ft.ButtonStyle(
+                          bgcolor={
+                              ft.ControlState.DEFAULT: ft.Colors.AMBER,
+                              ft.ControlState.HOVERED: ft.Colors.AMBER_800,
+                              ft.ControlState.FOCUSED: ft.Colors.AMBER_800,
+                          },
+                          color={
+                              ft.ControlState.DEFAULT: ft.Colors.BLACK,
+                              ft.ControlState.HOVERED: ft.Colors.WHITE,
+                              ft.ControlState.FOCUSED: ft.Colors.WHITE,
+                          },
+                          side={
+                              ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                              ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+                          },
+                          elevation={
+                              ft.ControlState.DEFAULT: 2,
+                              ft.ControlState.HOVERED: 8,
+                              ft.ControlState.FOCUSED: 8,
+                          },
+                          animation_duration=150,
+                      ),
+                      on_click=lambda _: usar_producto_sin_editar()),
+            ft.Button("Editar →", width=180, bgcolor=ft.Colors.BLUE,
+                      color=ft.Colors.WHITE,
+                      style=ft.ButtonStyle(
+                          bgcolor={
+                              ft.ControlState.DEFAULT: ft.Colors.BLUE,
+                              ft.ControlState.HOVERED: ft.Colors.BLUE_900,
+                              ft.ControlState.FOCUSED: ft.Colors.BLUE_900,
+                          },
+                          side={
+                              ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                              ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+                          },
+                          elevation={
+                              ft.ControlState.DEFAULT: 2,
+                              ft.ControlState.HOVERED: 8,
+                              ft.ControlState.FOCUSED: 8,
+                          },
+                          animation_duration=150,
+                      ),
+                      on_click=lambda _: mostrar_formulario_edicion()),
         ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
     )
 
     botones_edicion = ft.Row(
         [
-            ft.Button("Confirmar ✓", width=190, bgcolor=ft.Colors.GREEN,
-                    on_click=lambda _: confirmar_producto_editado()),
-            ft.Button("Cancelar ✗", width=150, bgcolor=ft.Colors.RED,
-                    on_click=lambda _: volver_a_resultados()),
+            ft.Button("Confirmar ✓", width=230, bgcolor=ft.Colors.GREEN,
+                      color=ft.Colors.WHITE,
+                      style=ft.ButtonStyle(
+                          bgcolor={
+                              ft.ControlState.DEFAULT: ft.Colors.GREEN,
+                              ft.ControlState.HOVERED: ft.Colors.GREEN_800,
+                              ft.ControlState.FOCUSED: ft.Colors.GREEN_800,
+                          },
+                          side={
+                              ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                              ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+                          },
+                          elevation={
+                              ft.ControlState.DEFAULT: 2,
+                              ft.ControlState.HOVERED: 8,
+                              ft.ControlState.FOCUSED: 8,
+                          },
+                          animation_duration=150,
+                      ),
+                      on_click=lambda _: confirmar_producto_editado()),
+            ft.Button("Cancelar ✗", width=180, bgcolor=ft.Colors.RED,
+                      color=ft.Colors.WHITE,
+                      style=ft.ButtonStyle(
+                          bgcolor={
+                              ft.ControlState.DEFAULT: ft.Colors.RED,
+                              ft.ControlState.HOVERED: ft.Colors.RED_800,
+                              ft.ControlState.FOCUSED: ft.Colors.RED_800,
+                          },
+                          side={
+                              ft.ControlState.HOVERED: ft.BorderSide(3, ft.Colors.BLACK),
+                              ft.ControlState.FOCUSED: ft.BorderSide(3, ft.Colors.BLACK),
+                          },
+                          elevation={
+                              ft.ControlState.DEFAULT: 2,
+                              ft.ControlState.HOVERED: 8,
+                              ft.ControlState.FOCUSED: 8,
+                          },
+                          animation_duration=150,
+                      ),
+                      on_click=lambda _: volver_a_resultados()),
         ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
     )
 
@@ -237,7 +314,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
                         color=ft.Colors.BLACK
                     )
                 ]),
-                width=380,
+                width=440,
                 height=30,
                 bgcolor=ft.Colors.WHITE,
                 color=ft.Colors.BLACK,
@@ -518,7 +595,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             botones_edicion,
             campo_cantidad,
             mensaje
-        ], height=650, width=400, scroll=ft.ScrollMode.AUTO),
+        ], height=650, width=460, scroll=ft.ScrollMode.AUTO),
         on_dismiss=cancelar
     )
 
