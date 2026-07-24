@@ -18,7 +18,6 @@ def probar_conexion():
     except Exception as error:
         print("Error de conexión:", error)
 
-
 #---------------- VISTAS ----------------
 def main(pagina: ft.Page):
 
