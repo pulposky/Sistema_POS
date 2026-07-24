@@ -1,4 +1,4 @@
-# 🛒 SENA PDV - Sistema POS y Gestión de Inventario
+# 🛒 Sistema POS y Gestión de Inventario
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Flet](https://img.shields.io/badge/GUI-Flet-violet.svg)](https://flet.dev/)
