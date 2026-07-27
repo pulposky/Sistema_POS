@@ -68,7 +68,7 @@ def inicio_view(pagina: ft.Page, ir_a_login):
         async def descargar_tecnico(e=None):
             dialogo_ayuda.open = False
             pagina.update()
-            await descargar_manual("ManualTecnico.txt", "Manual técnico")
+            await descargar_manual("Manual_Tecnico.pdf", "Manual técnico")
 
         dialogo_ayuda = ft.AlertDialog(
             modal=True,

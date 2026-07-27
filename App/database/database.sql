@@ -4,8 +4,8 @@
 -- ============================================================
 
 -- Reemplace "pos_db" por el nombre de base de datos que prefiera:
-CREATE DATABASE IF NOT EXISTS `pos_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `pos_db`;
+CREATE DATABASE IF NOT EXISTS `sena_pdv` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `sena_pdv`;
 
 -- ------------------------------------------------------------
 -- Tabla: usuarios
