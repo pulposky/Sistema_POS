@@ -105,7 +105,7 @@ def inicio_view(pagina: ft.Page, ir_a_login):
             )
         ),
         ft.Button(
-            "Ayuda",
+            "Soporte",
             on_click=mostrar_ayuda,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=10),
