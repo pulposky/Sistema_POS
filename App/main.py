@@ -11,7 +11,7 @@ from database.bd import conectar
 
 
 def probar_conexion():
-    try:
+    try:                                                        
         conexion = conectar()
         print("Base de datos conectada")
         conexion.close()

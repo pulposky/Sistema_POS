@@ -25,14 +25,56 @@ def preparar_producto_compra(producto, cantidad=None):
     producto_compra = dict(producto)
     cantidad_valor = float(cantidad if cantidad is not None else producto_compra.get("cantidad", 1))
     producto_compra["cantidad"] = cantidad_valor
-    producto_compra["subtotal"] = cantidad_valor * float(producto_compra.get("precio", 0))
+    producto_compra["descuento"] = max(
+        0,
+        min(100, float(producto_compra.get("descuento", 0)))
+    )
+    producto_compra["subtotal"] = max(
+        0,
+        cantidad_valor * float(producto_compra.get("precio", 0))
+        * (1 - producto_compra["descuento"] / 100)
+    )
     return producto_compra
 
 
 def actualizar_cantidad_producto_compra(producto, nueva_cantidad):
     producto["cantidad"] = float(nueva_cantidad)
-    producto["subtotal"] = float(producto["cantidad"]) * float(producto.get("precio", 0))
+    producto["subtotal"] = max(
+        0,
+        float(producto["cantidad"]) * float(producto.get("precio", 0))
+        * (1 - float(producto.get("descuento", 0)) / 100)
+    )
     return producto
+
+
+# ---------------------------------------------------
+# Actualiza el descuento y el subtotal de un producto
+# ---------------------------------------------------
+def actualizar_descuento_producto_compra(producto, nuevo_descuento):
+    producto["descuento"] = max(0, min(100, float(nuevo_descuento)))
+    producto["subtotal"] = max(
+        0,
+        float(producto.get("cantidad", 0)) * float(producto.get("precio", 0))
+        * (1 - producto["descuento"] / 100)
+    )
+    return producto
+
+
+def calcular_resumen_compra(productos):
+    subtotal_total = sum(
+        float(p.get("cantidad", 0)) * float(p.get("precio", 0))
+        for p in productos
+    )
+    descuento_valor = sum(
+        (float(p.get("cantidad", 0)) * float(p.get("precio", 0)))
+        * (float(p.get("descuento", 0)) / 100)
+        for p in productos
+    )
+    return {
+        "subtotal": subtotal_total,
+        "descuento": descuento_valor,
+        "total": subtotal_total - descuento_valor,
+    }
 
 
 def agregar_producto_a_compra(productos, producto):

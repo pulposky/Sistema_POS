@@ -36,7 +36,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     pagina.clean()
 
     # TamaÃ±o de la ventana para el login
-    pagina.window.width = 1400
+    pagina.window.width = 1500
     pagina.window.height = 800
 
     # Centro todo el contenido

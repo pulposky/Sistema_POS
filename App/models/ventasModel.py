@@ -94,7 +94,9 @@ def actualizar_producto(producto_datos):
             unidad=%s,
             lugar=%s,
             precio=%s,
-            stock=%s
+            stock=%s,
+            descripcion=%s,
+            categoria=%s
         WHERE id_producto=%s
     """
     cursor.execute(sql, (
@@ -103,6 +105,8 @@ def actualizar_producto(producto_datos):
         producto_datos.get('lugar', ''),
         producto_datos.get('precio', 0),
         producto_datos.get('stock', 0),
+        producto_datos.get('descripcion', ''),
+        producto_datos.get('categoria', 'Abonos y Sustratos'),
         producto_datos.get('id_producto') or producto_datos.get('id')
     ))
 
@@ -462,9 +466,11 @@ def crear_producto(datos):
             unidad,
             lugar,
             precio,
-            stock
+            stock,
+            descripcion,
+            categoria
         )
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
     try:
 
@@ -473,7 +479,9 @@ def crear_producto(datos):
             datos['unidad'],
             datos['lugar'],
             datos['precio'],
-            datos['stock']
+            datos['stock'],
+            datos.get('descripcion', ''),
+            datos.get('categoria', 'Abonos y Sustratos')
         ))
 
         conexion.commit()

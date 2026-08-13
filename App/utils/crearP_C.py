@@ -89,6 +89,32 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
     )
     campo_precio = ft.TextField(label="Precio", width=300)
     campo_stock  = ft.TextField(label="Stock",  width=300)
+    campo_descripcion = ft.TextField(
+        label="Descripción",
+        width=300,
+        multiline=True,
+        min_lines=2,
+        max_lines=4,
+        keyboard_type=ft.KeyboardType.TEXT
+    )
+    categoria_opciones = [
+        "Abonos y Sustratos",
+        "Frutas y Hortalizas",
+        "Cereales, Granos y Forrajes",
+        "Material Vegetal y Flores",
+        "Embutidos y Cárnicos",
+        "Bebidas y Refrescos",
+        "Salsas y Conservas",
+        "Lácteos y Derivados",
+        "Repostería, Dulces y Licores",
+        "Pecuario y Acuícola",
+    ]
+    campo_categoria = ft.Dropdown(
+        label="Categoría",
+        width=300,
+        value="Abonos y Sustratos",
+        options=[ft.dropdown.Option(item) for item in categoria_opciones],
+    )
 
     # Mensaje de error o validacion
     mensaje_producto = ft.Text("", color=ft.Colors.RED, size=12)
@@ -101,6 +127,8 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             campo_empresa,
             campo_precio,
             campo_stock,
+            campo_descripcion,
+            campo_categoria,
             mensaje_producto
         ],
         spacing=10,
@@ -309,6 +337,8 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             'lugar': campo_empresa.value.strip(),
             'precio': precio,
             'stock': stock,
+            'descripcion': campo_descripcion.value.strip(),
+            'categoria': campo_categoria.value.strip() if campo_categoria.value else 'Abonos y Sustratos',
         }
         # Llamo al modelo para insertar en la base de datos
         id_nuevo = crear_producto(datos)

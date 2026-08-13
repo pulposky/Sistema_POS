@@ -38,7 +38,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     pagina.clean()
 
     # Tamaño de la ventana para el login
-    pagina.window.width = 1400
+    pagina.window.width = 1500
     pagina.window.height = 800
 
     # Centro todo el contenido
@@ -81,6 +81,47 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         total.value = f"Total: ${resumen['total']:,.2f}"
         pagina.update()
 
+    def editar_descuento(index):
+
+        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+            return
+
+        producto = productos[index]
+        campo = ft.TextField(
+            value=str(producto.get("descuento", 0)),
+            autofocus=True,
+            width=120
+        )
+        def guardar_descuento(e):
+            try:
+                nuevo_descuento = float(campo.value)
+                ventas_controller.actualizar_descuento_producto(producto, nuevo_descuento)
+                tabla_productos.rows[index].cells[5] = ft.DataCell(
+                    ft.TextButton(
+                        content=ft.Text(
+                            f"{producto['descuento']:,.2f}%"
+                        ),
+                        on_click=lambda e: editar_descuento(index)
+                    )
+                )
+                tabla_productos.rows[index].cells[6] = ft.DataCell(
+                    ft.Text(
+                        f"${producto['subtotal']:,.2f}"
+                    )
+                )
+                tabla_productos.rows[index].cells[8] = crear_celda_acciones(
+                    producto,
+                    index
+                )
+                actualizar_totales()
+                pagina.update()
+            except:
+                pass
+        tabla_productos.rows[index].cells[5] = ft.DataCell(campo)
+        campo.on_submit = guardar_descuento
+        pagina.update()
+
+
     def editar_cantidad(index):
 
         if modo_consulta and usuario.get("rol", "") == "Aprendiz":
@@ -106,12 +147,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         on_click=lambda e: editar_cantidad(index)
                     )
                 )
-                tabla_productos.rows[index].cells[5] = ft.DataCell(
+                tabla_productos.rows[index].cells[6] = ft.DataCell(
                     ft.Text(
                         f"${producto['subtotal']:,.2f}"
                     )
                 )
-                tabla_productos.rows[index].cells[7] = crear_celda_acciones(
+                tabla_productos.rows[index].cells[8] = crear_celda_acciones(
                     producto,
                     index
                 )
@@ -204,6 +245,13 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         ),
 
                         ft.DataCell(
+                            ft.TextButton(
+                                content=ft.Text(f"{p.get('descuento', 0):,.2f}%"),
+                                on_click=lambda e, idx=i: editar_descuento(idx)
+                            )
+                        ),
+
+                        ft.DataCell(
                             ft.Text(f"${p.get('subtotal', 0):,.2f}")
                         ),
 
@@ -255,6 +303,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
                     ft.DataCell(ft.Text(str(producto.get('unidad', 'UND')))),
                     ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
+                    ft.DataCell(
+                        ft.TextButton(
+                            content=ft.Text(f"{producto.get('descuento', 0):,.2f}%"),
+                            on_click=lambda e, idx=len(productos): editar_descuento(idx - 1)
+                        )
+                    ),
                     ft.DataCell(ft.Text(f"${producto.get('subtotal', 0):,.2f}")),
                     ft.DataCell(ft.Text(str(producto.get('lugar', '-')))),
                     crear_celda_acciones(producto, len(productos)-1)
@@ -390,6 +444,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ),
                     ft.DataCell(ft.Text(producto["unidad"])),
                     ft.DataCell(ft.Text(f"${producto['precio']:,.2f}")),
+                    ft.DataCell(ft.Text(f"{producto.get('descuento', 0):,.2f}%")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
                     ft.DataCell(ft.Text(producto["lugar"])),
                     crear_celda_acciones(producto, i, deshabilitado=True)
@@ -755,6 +810,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Cantidad")),
             ft.DataColumn(ft.Text("Unidad")),
             ft.DataColumn(ft.Text("Precio unitario")),
+            ft.DataColumn(ft.Text("Descuento")),
             ft.DataColumn(ft.Text("Subtotal")),
             ft.DataColumn(ft.Text("Empresa")),
             ft.DataColumn(ft.Text("")), # Columna para el botón eliminar

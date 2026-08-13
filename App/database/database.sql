@@ -61,8 +61,16 @@ CREATE TABLE IF NOT EXISTS `producto` (
   `unidad` VARCHAR(20) DEFAULT 'UND',
   `lugar` VARCHAR(50) DEFAULT 'Bodega Principal',
   `precio` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-  `stock` DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+  `stock` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  `descripcion` TEXT DEFAULT '',
+  `categoria` VARCHAR(100) DEFAULT 'Abonos y Sustratos'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE `producto`
+  ADD COLUMN IF NOT EXISTS `descripcion` TEXT DEFAULT '';
+
+ALTER TABLE `producto`
+  ADD COLUMN IF NOT EXISTS `categoria` VARCHAR(100) DEFAULT 'Abonos y Sustratos';
 
 -- ------------------------------------------------------------
 -- Tabla: venta

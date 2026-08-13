@@ -27,7 +27,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     f4_siguiente_abrir_ventana = True
 
     pagina.clean()
-    pagina.window.width = 1400
+    pagina.window.width = 1500
     pagina.window.height = 800
     pagina.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     pagina.vertical_alignment = ft.MainAxisAlignment.CENTER
@@ -54,12 +54,10 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     )
 
     def actualizar_totales():
-        subtotal_total = compras_controller.calcular_total(productos)
-        descuento_valor = 0
-        total_valor = subtotal_total - descuento_valor
-        subtotal.value = f"Subtotal: ${subtotal_total:,.2f}"
-        descuento.value = f"Descuento: ${descuento_valor:,.2f}"
-        total.value = f"Total: ${total_valor:,.2f}"
+        resumen = compras_controller.calcular_resumen_compra(productos)
+        subtotal.value = f"Subtotal: ${resumen['subtotal']:,.2f}"
+        descuento.value = f"Descuento: ${resumen['descuento']:,.2f}"
+        total.value = f"Total: ${resumen['total']:,.2f}"
         pagina.update()
 
 
@@ -88,7 +86,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         on_click=lambda e: editar_cantidad(index)
                     )
                 )
-                tabla_productos.rows[index].cells[5] = ft.DataCell(
+                tabla_productos.rows[index].cells[6] = ft.DataCell(
                     ft.Text(
                         f"${producto['subtotal']:,.2f}"
                     )
@@ -99,6 +97,42 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             except:
                 pass
         tabla_productos.rows[index].cells[2] = ft.DataCell(campo)
+        campo.on_submit = guardar
+        pagina.update()
+
+    def editar_descuento(index):
+
+        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+            return
+
+        producto = productos[index]
+        campo = ft.TextField(
+            value=str(producto.get("descuento", 0)),
+            autofocus=True,
+            width=120
+        )
+        def guardar(e):
+            try:
+                nuevo_descuento = float(campo.value)
+                compras_controller.actualizar_descuento_producto_compra(producto, nuevo_descuento)
+                tabla_productos.rows[index].cells[5] = ft.DataCell(
+                    ft.TextButton(
+                        content=ft.Text(
+                            f"{producto['descuento']:,.2f}%"
+                        ),
+                        on_click=lambda e: editar_descuento(index)
+                    )
+                )
+                tabla_productos.rows[index].cells[6] = ft.DataCell(
+                    ft.Text(
+                        f"${producto['subtotal']:,.2f}"
+                    )
+                )
+                actualizar_totales()
+                pagina.update()
+            except:
+                pass
+        tabla_productos.rows[index].cells[5] = ft.DataCell(campo)
         campo.on_submit = guardar
         pagina.update()
 
@@ -120,6 +154,12 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         ),
                         ft.DataCell(ft.Text(str(p.get('unidad', 'UND')))),
                         ft.DataCell(ft.Text(f"${p.get('precio', 0):,.2f}")),
+                        ft.DataCell(
+                            ft.TextButton(
+                                content=ft.Text(f"${p.get('descuento', 0):,.2f}"),
+                                on_click=lambda e, idx=productos.index(p): editar_descuento(idx)
+                            )
+                        ),
                         ft.DataCell(ft.Text(f"${p.get('subtotal', 0):,.2f}")),
                         ft.DataCell(ft.Text(str(p.get('lugar', '-'))))
                     ]
@@ -249,6 +289,13 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
                     ft.DataCell(ft.Text(producto["unidad"])),
                     ft.DataCell(ft.Text(f"${producto['precio']:,.2f}")),
+                    ft.DataCell(
+                        ft.TextButton(
+                            content=ft.Text(f"{producto.get('descuento', 0):,.2f}%"),
+                            on_click=lambda e, idx=productos.index(producto): editar_descuento(idx)
+                        )
+                    ),
+                    ft.DataCell(ft.Text(f"{producto.get('descuento', 0):,.2f}%")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
                     ft.DataCell(ft.Text(producto["lugar"]))
                 ])
@@ -552,8 +599,12 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Cantidad")),
             ft.DataColumn(ft.Text("Unidad")),
             ft.DataColumn(ft.Text("Precio unitario")),
+            ft.DataColumn(ft.Text("Descuento")),
             ft.DataColumn(ft.Text("Subtotal")),
             ft.DataColumn(ft.Text("Empresa")),
+
+            ft.DataColumn(ft.Text("Empresa")),
+
         ],
         rows=[],
         border=ft.Border.all(1, ft.Colors.BLACK),

@@ -81,10 +81,30 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     campo_lugar = ft.TextField(label="Empresa/Lugar", width=340)
     campo_precio = ft.TextField(label="Precio", width=340)
     campo_stock = ft.TextField(label="Stock", width=340)
+    campo_descripcion = ft.TextField(label="Descripción", width=340, multiline=True, min_lines=2, max_lines=4)
+    categoria_options = [
+        "Abonos y Sustratos",
+        "Frutas y Hortalizas",
+        "Cereales, Granos y Forrajes",
+        "Material Vegetal y Flores",
+        "Embutidos y Cárnicos",
+        "Bebidas y Refrescos",
+        "Salsas y Conservas",
+        "Lácteos y Derivados",
+        "Repostería, Dulces y Licores",
+        "Pecuario y Acuícola",
+    ]
+    campo_categoria = ft.Dropdown(
+        label="Categoría",
+        width=340,
+        options=[ft.dropdown.Option(item) for item in categoria_options],
+    )
 
     info_producto = ft.Column(
         [
             ft.Text("Datos del producto seleccionado", size=14, weight="bold"),
+            ft.Text("", size=13),
+            ft.Text("", size=13),
             ft.Text("", size=13),
             ft.Text("", size=13),
             ft.Text("", size=13),
@@ -98,7 +118,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     form_edicion = ft.Column(
         [
             ft.Text("Verificar y editar datos del producto", size=13, weight="bold"),
-            campo_nombre, campo_unidad, campo_lugar, campo_precio, campo_stock,
+            campo_nombre, campo_unidad, campo_lugar, campo_precio, campo_stock, campo_descripcion, campo_categoria,
         ],
         visible=False,
         spacing=10,
@@ -417,6 +437,8 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         info_producto.controls[3].value = f"Empresa/Lugar: {producto_datos_editables.get('lugar', '')}"
         info_producto.controls[4].value = f"Precio: ${producto_datos_editables.get('precio', 0)}"
         info_producto.controls[5].value = f"Stock: {producto_datos_editables.get('stock', 0)}"
+        info_producto.controls[6].value = f"Descripción: {producto_datos_editables.get('descripcion', '') or 'Sin descripción'}"
+        info_producto.controls[7].value = f"Categoría: {producto_datos_editables.get('categoria', 'Abonos y Sustratos')}"
 
         campo_busqueda.visible = False
         resultados_container.visible = False
@@ -434,6 +456,8 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         campo_lugar.value = producto_datos_editables.get('lugar', '')
         campo_precio.value = str(producto_datos_editables.get('precio', 0))
         campo_stock.value = str(producto_datos_editables.get('stock', 0))
+        campo_descripcion.value = producto_datos_editables.get('descripcion', '')
+        campo_categoria.value = producto_datos_editables.get('categoria', 'Abonos y Sustratos')
 
         info_producto.visible = False
         botones_opciones.visible = False
@@ -453,6 +477,8 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             producto_datos_editables['lugar'] = campo_lugar.value.strip()
             producto_datos_editables['precio'] = float(campo_precio.value.replace(',', '.'))
             producto_datos_editables['stock'] = float(campo_stock.value.replace(',', '.'))
+            producto_datos_editables['descripcion'] = campo_descripcion.value.strip()
+            producto_datos_editables['categoria'] = campo_categoria.value.strip() if campo_categoria.value else 'Abonos y Sustratos'
 
             if not producto_datos_editables['nombre'] or not producto_datos_editables['unidad']:
                 raise ValueError("Nombre y unidad son obligatorios")

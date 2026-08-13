@@ -39,8 +39,15 @@ def formatear_cantidad(cantidad):
 # Devuelve un resumen sencillo de los totales de la venta
 # ---------------------------------------------------
 def calcular_resumen_venta(productos):
-    subtotal_total = calcular_total(productos)
-    descuento_valor = 0
+    subtotal_total = sum(
+        float(p.get("cantidad", 0)) * float(p.get("precio", 0))
+        for p in productos
+    )
+    descuento_valor = sum(
+        (float(p.get("cantidad", 0)) * float(p.get("precio", 0)))
+        * (float(p.get("descuento", 0)) / 100)
+        for p in productos
+    )
     return {
         "subtotal": subtotal_total,
         "descuento": descuento_valor,
@@ -50,13 +57,21 @@ def calcular_resumen_venta(productos):
 
 # ---------------------------------------------------
 # Prepara un producto para agregarse a la venta con
-# cantidad y subtotal calculados
+# cantidad, descuento y subtotal calculados
 # ---------------------------------------------------
 def preparar_producto_venta(producto, cantidad=None):
     producto_venta = dict(producto)
     cantidad_valor = float(cantidad if cantidad is not None else producto_venta.get("cantidad", 1))
     producto_venta["cantidad"] = cantidad_valor
-    producto_venta["subtotal"] = cantidad_valor * float(producto_venta.get("precio", 0))
+    producto_venta["descuento"] = max(
+        0,
+        min(100, float(producto_venta.get("descuento", 0)))
+    )
+    producto_venta["subtotal"] = max(
+        0,
+        cantidad_valor * float(producto_venta.get("precio", 0))
+        * (1 - producto_venta["descuento"] / 100)
+    )
     return producto_venta
 
 
@@ -65,7 +80,24 @@ def preparar_producto_venta(producto, cantidad=None):
 # ---------------------------------------------------
 def actualizar_cantidad_producto(producto, nueva_cantidad):
     producto["cantidad"] = float(nueva_cantidad)
-    producto["subtotal"] = float(producto["cantidad"]) * float(producto.get("precio", 0))
+    producto["subtotal"] = max(
+        0,
+        float(producto["cantidad"]) * float(producto.get("precio", 0))
+        * (1 - float(producto.get("descuento", 0)) / 100)
+    )
+    return producto
+
+
+# ---------------------------------------------------
+# Actualiza el descuento y el subtotal de un producto
+# ---------------------------------------------------
+def actualizar_descuento_producto(producto, nuevo_descuento):
+    producto["descuento"] = max(0, min(100, float(nuevo_descuento)))
+    producto["subtotal"] = max(
+        0,
+        float(producto.get("cantidad", 0)) * float(producto.get("precio", 0))
+        * (1 - producto["descuento"] / 100)
+    )
     return producto
 
 
