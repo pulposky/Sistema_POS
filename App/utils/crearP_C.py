@@ -3,6 +3,7 @@ from models.ventasModel import (
     crear_cliente, crear_producto
 )
 from models.comprasModel import crear_proveedor
+from utils.notificaciones import mostrar_notificacion
 
 
 # =========================================================
@@ -263,6 +264,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             # Esto actualiza el campo de cliente en vender.py
             callback(datos)
             cerrar_dialogo()
+            mostrar_notificacion(pagina, f"Cliente '{datos['nombre']}' creado correctamente.")
         else:
             mensaje_usuario.value = "Error al guardar el cliente"
             pagina.update()
@@ -284,6 +286,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             datos["id_proveedor"] = id_nuevo
             callback(datos)
             cerrar_dialogo()
+            mostrar_notificacion(pagina, f"Proveedor '{datos['nombre']}' creado correctamente.")
         else:
             mensaje_proveedor.value = "Error al guardar el proveedor"
             pagina.update()
@@ -348,6 +351,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
             callback(datos)
             cerrar_dialogo()
+            mostrar_notificacion(pagina, f"Producto '{datos['nombre']}' creado correctamente.")
         else:
             mensaje_producto.value = "Error al guardar el Producto"
             pagina.update()

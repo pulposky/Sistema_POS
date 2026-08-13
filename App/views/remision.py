@@ -7,6 +7,7 @@ from controllers import remisionController as remision_controller
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
 from utils.abrirNuevaVentana import abrir_nueva_instancia
+from utils.notificaciones import mostrar_notificacion
 
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR REMISIONES
@@ -191,11 +192,15 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         if not resultado:
             print("Error al guardar la remision")
+            mostrar_notificacion(pagina, "No fue posible guardar la remisión.", error=True)
             return
 
         print(f"Remision {resultado['id_remision']} guardada")
         print(f"PDF: {resultado['ruta_pdf']}")
         limpiar_factura()
+        mostrar_notificacion(
+            pagina, f"Remisión #{resultado['id_remision']} guardada correctamente."
+        )
 
     # ---------------- FACTURAR ----------------
     dialog_remision = None

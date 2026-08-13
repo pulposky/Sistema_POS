@@ -102,3 +102,70 @@ def crear_informe_facturas(tabla_documentos):
 
     libro.save(ruta_informe)
     return ruta_informe
+
+
+def crear_informe_inventario(productos):
+    """Crea en la carpeta App un Excel a partir del informe de inventario.
+
+    ``productos`` debe contener las mismas claves que retorna
+    ``obtener_informe_inventario``: código, movimientos y stock final.
+    """
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
+    except ImportError as exc:
+        raise RuntimeError("Falta instalar openpyxl para crear el informe.") from exc
+
+    # InformeExcel.py está dentro de App/utils; su carpeta padre es App.
+    carpeta_app = Path(__file__).resolve().parent.parent
+    nombre_archivo = (
+        f"informe_inventario_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    )
+    ruta_informe = carpeta_app / nombre_archivo
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = "Inventario"
+
+    encabezados = [
+        "Código", "Producto", "Entradas", "Compras",
+        "Ventas", "Remisiones", "Stock final", "Unidad",
+    ]
+    hoja.append(["INFORME DE INVENTARIO"])
+    hoja.append([f"Generado: {datetime.now().strftime('%d/%m/%Y %I:%M %p')}"])
+    hoja.append(encabezados)
+
+    # Estilo del título y de los encabezados.
+    hoja.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(encabezados))
+    hoja["A1"].font = Font(bold=True, size=14, color="FFFFFF")
+    hoja["A1"].fill = PatternFill("solid", fgColor="1F4E78")
+    hoja["A1"].alignment = Alignment(horizontal="center")
+
+    for celda in hoja[3]:
+        celda.font = Font(bold=True, color="FFFFFF")
+        celda.fill = PatternFill("solid", fgColor="1F4E78")
+        celda.alignment = Alignment(horizontal="center")
+
+    for producto in productos:
+        hoja.append([
+            producto.get("codigo", ""),
+            producto.get("nombre", ""),
+            float(producto.get("entradas", 0)),
+            float(producto.get("compras", 0)),
+            float(producto.get("ventas", 0)),
+            float(producto.get("remisiones", 0)),
+            float(producto.get("stock_final", 0)),
+            producto.get("unidad", "UND"),
+        ])
+
+    # Agrego filtro y ajusto el ancho para que sea cómodo de leer.
+    hoja.auto_filter.ref = f"A3:{get_column_letter(len(encabezados))}{hoja.max_row}"
+    hoja.freeze_panes = "A4"
+    for columna in hoja.columns:
+        letra = get_column_letter(columna[0].column)
+        longitud = max(len(str(celda.value or "")) for celda in columna)
+        hoja.column_dimensions[letra].width = min(max(longitud + 2, 12), 35)
+
+    libro.save(ruta_informe)
+    return ruta_informe

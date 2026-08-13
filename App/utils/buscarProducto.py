@@ -1,5 +1,6 @@
 import flet as ft
 from models.ventasModel import buscar_producto, actualizar_producto
+from utils.notificaciones import mostrar_notificacion
 
 # Utilidad para buscar productos desde una ventana emergente dentro de la app.
 
@@ -485,6 +486,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
             actualizar_producto(producto_datos_editables)
             producto_seleccionado = producto_datos_editables.copy()
+            mostrar_notificacion(pagina, "Producto actualizado correctamente.")
             mostrar_cantidad()
         except ValueError as err:
             mensaje.value = str(err) or "Precio y stock deben ser números válidos"

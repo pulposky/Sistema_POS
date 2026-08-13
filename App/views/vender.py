@@ -8,6 +8,7 @@ from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
 from utils.abrirNuevaVentana import abrir_nueva_instancia
+from utils.notificaciones import mostrar_notificacion
 
 
 # =========================================================
@@ -351,11 +352,15 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         if not resultado:
             print("Error al guardar la factura")
+            mostrar_notificacion(pagina, "No fue posible guardar la venta.", error=True)
             return
 
         print(f"Factura {resultado['id_factura']} guardada")
         print(f"PDF: {resultado['ruta_pdf']}")
         limpiar_factura()
+        mostrar_notificacion(
+            pagina, f"Venta #{resultado['id_factura']} guardada correctamente."
+        )
 
     # ---------------- FACTURAR ----------------
 

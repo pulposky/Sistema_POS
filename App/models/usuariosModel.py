@@ -13,5 +13,7 @@ def crear_usuario(nombre, usuario, password, rol):
     valores = (nombre, usuario, password, rol)
     cursor.execute(sql, valores)
     conexion.commit()
+    id_usuario = cursor.lastrowid
     cursor.close()
     conexion.close()
+    return id_usuario

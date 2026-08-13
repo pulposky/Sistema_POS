@@ -8,6 +8,7 @@ from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
 from utils.buscarProveedor import buscar_proveedor_view
 from utils.abrirNuevaVentana import abrir_nueva_instancia
+from utils.notificaciones import mostrar_notificacion
 
 
 # =========================================================
@@ -202,12 +203,16 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         if not resultado:
             print("Error al guardar la compra")
+            mostrar_notificacion(pagina, "No fue posible guardar la compra.", error=True)
             return
 
         print(f"Compra {resultado['id_compra']} guardada")
         print(f"PDF: {resultado['ruta_pdf']}")
 
         limpiar_compra()
+        mostrar_notificacion(
+            pagina, f"Compra #{resultado['id_compra']} guardada correctamente."
+        )
 
     def facturar():
         if modo_consulta:

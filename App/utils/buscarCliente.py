@@ -2,6 +2,7 @@
 import asyncio
 import flet as ft
 from models.ventasModel import buscar_cliente, actualizar_cliente
+from utils.notificaciones import mostrar_notificacion
 
 # Utilidad para buscar y seleccionar clientes desde una ventana emergente.
 
@@ -491,6 +492,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             cliente_confirmado = True
             mostrar_cliente_seleccionado(cliente_datos_editables)
             cerrar_dialogo()
+            mostrar_notificacion(pagina, "Cliente actualizado correctamente.")
         except Exception as err:
             # Muestro error si algo sale mal
             mensaje.value = f"Error al guardar: {str(err)}"

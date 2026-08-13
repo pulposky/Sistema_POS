@@ -55,6 +55,12 @@ def main(pagina: ft.Page):
             rutas["remision"](usuario)
         else:
             iniciar()
+    elif vista in {"entrada", "entradas"}:
+        usuario = json.loads(usuario_json) if usuario_json else None
+        if usuario:
+            rutas["entradas"](usuario)
+        else:
+            iniciar()
     else:
         # Si no viene una vista especial, sigo con la vista inicial normal
         iniciar()

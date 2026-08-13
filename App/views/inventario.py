@@ -1,14 +1,15 @@
 # VISTA PARA INVENTARIO
-# Muestra los productos con stock bajo o negativo para seguimiento.
+# Muestra el stock calculado desde entradas, compras, ventas y remisiones.
 import flet as ft
 import asyncio 
 from datetime import datetime
 
-from models.inventarioModel import buscar_producto
+from models.inventarioModel import obtener_informe_inventario
+from utils.InformeExcel import crear_informe_inventario, mostrar_mensaje
 
 
 def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
-    # Lista donde se guardan los productos con stock en 0 o negativo
+    # Lista con los movimientos y stock calculado de cada producto.
     productos = []
     print(f"Usuario en inventario: {usuario}")
 
@@ -38,10 +39,9 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     
     Volver_menu = ft.Button("Volver [Esc]", on_click=lambda _: ir_a_menu(usuario))
 
-    titulo_inventario = ft.Text("Productos con Stock Bajo o Negativo", size=17, weight="bold")
+    titulo_inventario = ft.Text("Informe de Inventario", size=17, weight="bold")
     
-    # Etiqueta que muestra la cantidad de productos
-    cantidad_productos = ft.Text("Productos encontrados: 0", size=15, weight="bold")
+    cantidad_productos = ft.Text("Productos en informe: 0", size=15, weight="bold")
 
     # ================== FUNCIONES ==================
 
@@ -67,36 +67,38 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             await asyncio.sleep(1)
 
     def cargar_productos():
-        """Carga los productos con stock <= 0 desde la base de datos"""
+        """Consulta movimientos y pinta el stock final de cada producto."""
         nonlocal productos
         
         try:
-            productos = buscar_producto()
-            cantidad_productos.value = f"Productos encontrados: {len(productos)}"
+            productos = obtener_informe_inventario()
+            cantidad_productos.value = f"Productos en informe: {len(productos)}"
             
             # Limpiar las filas existentes
             tabla_productos.rows.clear()
             
             # Agregar cada producto a la tabla
             for producto in productos:
-                stock = producto.get("stock", 0)
-                color_stock = ft.Colors.RED if stock < 0 else ft.Colors.ORANGE
+                stock = float(producto.get("stock_final", 0))
+                color_stock = ft.Colors.RED if stock < 0 else ft.Colors.GREEN
                 
                 tabla_productos.rows.append(
                     ft.DataRow(
                         cells=[
-                            ft.DataCell(ft.Text(str(producto.get("id", "-")))),
+                            ft.DataCell(ft.Text(str(producto.get("codigo", "-")))),
                             ft.DataCell(ft.Text(producto.get("nombre", "Sin nombre"))),
+                            ft.DataCell(ft.Text(formatear_cantidad(producto.get("entradas", 0)))),
+                            ft.DataCell(ft.Text(formatear_cantidad(producto.get("compras", 0)))),
+                            ft.DataCell(ft.Text(formatear_cantidad(producto.get("ventas", 0)))),
+                            ft.DataCell(ft.Text(formatear_cantidad(producto.get("remisiones", 0)))),
                             ft.DataCell(
                                 ft.Text(
-                                    str(stock),
+                                    formatear_cantidad(stock),
                                     color=color_stock,
                                     weight="bold"
                                 )
                             ),
                             ft.DataCell(ft.Text(str(producto.get("unidad", "UND")))),
-                            ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
-                            ft.DataCell(ft.Text(str(producto.get("lugar", "-")))),
                         ]
                     )
                 )
@@ -116,16 +118,33 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         elif e.key == "F5":
             cargar_productos()
 
+    def formatear_cantidad(cantidad):
+        """Evita mostrar .0 cuando el movimiento es un número entero."""
+        cantidad = float(cantidad or 0)
+        return str(int(cantidad)) if cantidad.is_integer() else f"{cantidad:.2f}"
+
+    def exportar_excel(_):
+        """Consulta datos recientes y guarda el informe en App como .xlsx."""
+        try:
+            datos_actuales = obtener_informe_inventario()
+            ruta = crear_informe_inventario(datos_actuales)
+            mostrar_mensaje(pagina, f"Excel generado en: {ruta}")
+        except Exception as error:
+            print(f"Error al exportar inventario a Excel: {error}")
+            mostrar_mensaje(pagina, f"No se pudo generar el Excel: {error}", ft.Colors.RED)
+
     # ================== TABLA DE PRODUCTOS ==================
 
     tabla_productos = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Codigo")),
             ft.DataColumn(ft.Text("Producto")),
+            ft.DataColumn(ft.Text("Entradas")),
+            ft.DataColumn(ft.Text("Compras")),
+            ft.DataColumn(ft.Text("Ventas")),
+            ft.DataColumn(ft.Text("Remisiones")),
             ft.DataColumn(ft.Text("Stock")),
             ft.DataColumn(ft.Text("Unidad")),
-            ft.DataColumn(ft.Text("Precio unitario")),
-            ft.DataColumn(ft.Text("Empresa")),
         ],
         rows=[],
         border=ft.Border.all(1, ft.Colors.BLACK),
@@ -138,6 +157,18 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     btn_recargar = ft.Button(
         "Recargar [F5]",
         on_click=lambda _: cargar_productos(),
+        width=200,
+        height=40,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            text_style=ft.TextStyle(size=15, weight="bold")
+        )
+    )
+
+    btn_exportar_excel = ft.Button(
+        "Exportar Excel",
+        icon=ft.Icons.DOWNLOAD,
+        on_click=exportar_excel,
         width=200,
         height=40,
         style=ft.ButtonStyle(
@@ -165,7 +196,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
                 ft.Row(
-                    [btn_recargar],
+                    [btn_recargar, btn_exportar_excel],
                     spacing=5
                 ),
                 ft.Divider(),
@@ -175,10 +206,12 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     border_radius=10,
                     content=ft.Column(
                         expand=True,
-                        scroll=ft.ScrollMode.AUTO,
+                        # Desplazamiento vertical para informes con muchas filas.
+                        scroll=ft.ScrollMode.ALWAYS,
                         controls=[
                             ft.Row(
-                                scroll=ft.ScrollMode.AUTO,
+                                # Desplazamiento horizontal para ver todas las columnas.
+                                scroll=ft.ScrollMode.ALWAYS,
                                 controls=[
                                     tabla_productos
                                 ]

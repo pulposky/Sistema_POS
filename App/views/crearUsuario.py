@@ -1,5 +1,6 @@
 import flet as ft
 from controllers import usuarioController
+from utils.notificaciones import mostrar_notificacion
 # Vista para crear usuarios desde la interfaz del sistema.
 
 def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
@@ -8,10 +9,19 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
 
     # ---------------- FUNCIONES ----------------
     def guardar(e):
-        # Aquí puedes agregar la lógica para guardar el usuario en la base de datos o realizar cualquier acción necesaria.
-        print("Usuario guardado:", nombre.value, usuario_field.value, password.value, rol.value)
-        usuarioController.guardar_usuario(nombre.value, usuario_field.value, password.value, rol.value)
-        ir_a_menu(usuario)  # Regresar al menú después de guardar
+        if not nombre.value.strip() or not usuario_field.value.strip() or not password.value.strip():
+            mostrar_notificacion(pagina, "Completa todos los campos obligatorios.", error=True)
+            return
+
+        try:
+            id_usuario = usuarioController.guardar_usuario(
+                nombre.value.strip(), usuario_field.value.strip(), password.value, rol.value
+            )
+            mostrar_notificacion(pagina, f"Usuario #{id_usuario} creado correctamente.")
+            ir_a_menu(usuario)
+        except Exception as error:
+            print(f"Error al crear usuario: {error}")
+            mostrar_notificacion(pagina, "No fue posible crear el usuario.", error=True)
 
     def cancelar(e):
         ir_a_menu(usuario)  # Regresar al menú sin guardar
