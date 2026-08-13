@@ -1,3 +1,4 @@
+
 # 🛒 Sistema POS y Gestión de Inventario
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -36,9 +37,9 @@ cd tu-repositorio
 
 ### 2️⃣ Configurar la Base de Datos
 
-1. Inicia tu servidor MySQL (Laragon ).
+1. Inicia tu servidor MySQL (Laragon).
 2. Abre tu gestor de base de datos (phpMyAdmin).
-3. Importa el archivo  `database.sql` incluido en la carpeta database. Este archivo:
+3. Importa el archivo `database.sql` incluido en la carpeta `database`. Este archivo:
 
    - Crea la base de datos por defecto (`pos_db`).
    - Crea todas las 10 tablas requeridas con sus llaves primarias y foráneas.
@@ -63,10 +64,10 @@ Es una buena práctica utilizar un entorno virtual para aislar las dependencias 
 
 ```powershell
 # Crear el entorno virtual
-python -m venv venv
+python -m venv .venv
 
 # Activar el entorno virtual
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 # Instalar las librerías necesarias
 pip install -r App/requirements.txt
@@ -76,10 +77,10 @@ pip install -r App/requirements.txt
 
 ```bash
 # Crear el entorno virtual
-python3 -m venv venv
+python3 -m venv .venv
 
 # Activar el entorno virtual
-source venv/bin/activate
+source .venv/bin/activate
 
 # Instalar las librerías necesarias
 pip install -r App/requirements.txt
@@ -97,13 +98,33 @@ python App/main.py
 
 ---
 
+## 📦 Generar el Ejecutable (.exe)
+
+Si necesitas distribuir la aplicación como un ejecutable independiente (sin requerir que el usuario final instale Python), el proyecto incluye un archivo `main.spec` con la configuración de **PyInstaller**.
+
+1. Con el entorno virtual activado, instala PyInstaller (si no está incluido en `requirements.txt`):
+
+```bash
+pip install pyinstaller
+```
+
+2. Genera el ejecutable usando el archivo `.spec` ya configurado:
+
+```bash
+pyinstaller main.spec
+```
+
+3. El ejecutable resultante se ubicará en la carpeta `dist/`, y los archivos temporales de compilación quedarán en `build/`.
+
+---
+
 ## 🛠️ Solución de Problemas Frecuentes (FAQ)
 
-| Problema                                        | Causa Posible                                                              | Solución                                                                                                                       |
-| :---------------------------------------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
-| `Error de conexión a la base de datos`       | El servicio MySQL está apagado o las credenciales no coinciden            | Asegúrate de que MySQL en Laragon/XAMPP esté iniciado y revisa el archivo`App/database/bd.py`.                              |
-| `Script Execution Disabled` (PowerShell)      | Política de ejecución restringida en Windows                             | Ejecuta en PowerShell:`Set-ExecutionPolicy Unrestricted -Scope Process` y luego reactiva con `.\venv\Scripts\Activate.ps1`. |
-| `ModuleNotFoundError: No module named 'flet'` | El entorno virtual no está activado o no se instalaron los requerimientos | Activa el entorno virtual (`.\venv\Scripts\Activate.ps1`) y vuelve a correr `pip install -r App/requirements.txt`.          |
+| Problema                                        | Causa Posible                                                              | Solución                                                                                                                        |
+| :---------------------------------------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
+| `Error de conexión a la base de datos`       | El servicio MySQL está apagado o las credenciales no coinciden            | Asegúrate de que MySQL en Laragon/XAMPP esté iniciado y revisa el archivo`App/database/bd.py`.                               |
+| `Script Execution Disabled` (PowerShell)      | Política de ejecución restringida en Windows                             | Ejecuta en PowerShell:`Set-ExecutionPolicy Unrestricted -Scope Process` y luego reactiva con `.\.venv\Scripts\Activate.ps1`. |
+| `ModuleNotFoundError: No module named 'flet'` | El entorno virtual no está activado o no se instalaron los requerimientos | Activa el entorno virtual (`.\.venv\Scripts\Activate.ps1`) y vuelve a correr `pip install -r App/requirements.txt`.          |
 
 ---
 
@@ -112,20 +133,19 @@ python App/main.py
 ```text
 Proyecto/
 ├── App/
-│   ├── main.py              # Punto de entrada principal
-│   ├── requirements.txt     # Librerías dependientes
-│   ├── database/            # Conexión a MySQL
-|   ├── docs/                # Manuales (tecnico y de usuario)
-│   ├── models/              # Consultas y persistencia de datos (SQL)
-│   ├── controllers/         # Reglas y lógica de negocio
-│   ├── views/               # Interfaces de usuario con Flet
-│   ├── routers/             # Navegación y enrutamiento entre pantallas
-│   └── utils/               # Generador PDF, reportes Excel y modales
-└── README.md                # Guía de presentación e instalación para GitHub
+│   ├── assets/               # Recursos gráficos (íconos, imágenes)
+│   ├── main.py                # Punto de entrada principal
+│   ├── requirements.txt       # Librerías dependientes
+│   ├── database/              # Conexión a MySQL
+│   ├── docs/                  # Manuales (técnico y de usuario)
+│   ├── models/                # Consultas y persistencia de datos (SQL)
+│   ├── controllers/           # Reglas y lógica de negocio
+│   ├── views/                 # Interfaces de usuario con Flet
+│   ├── routers/                # Navegación y enrutamiento entre pantallas
+│   └── utils/                  # Generador PDF, reportes Excel y modales
+└── README.md                   # Guía de presentación e instalación para GitHub
 ```
-
----
 
 ## 👥 Contribuciones y Soporte
 
-Para más detalles sobre la arquitectura interna, modelos de datos y flujo de trabajo, consulta el archivo `MANUAL_TECNICO.pdf`
+Para más detalles sobre la arquitectura interna, modelos de datos y flujo de trabajo, consulta el archivo `MANUAL_TECNICO.pdf`.
