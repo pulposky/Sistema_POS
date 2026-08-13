@@ -28,6 +28,8 @@ def main(pagina: ft.Page):
     pagina.title = "SENA"
 
     pagina.theme_mode = ft.ThemeMode.LIGHT
+    
+    pagina.window.icon = "Logo_sena.ico"
 
     # Inicio las rutas disponibles de la app
     rutas, iniciar = configurar_rutas(pagina)
@@ -67,4 +69,4 @@ def main(pagina: ft.Page):
 
 # Inicio Flet
 if __name__ == "__main__":
-    ft.run(main)
+    ft.run(main, assets_dir="assets")

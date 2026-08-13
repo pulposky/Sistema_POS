@@ -59,7 +59,7 @@ def login_view(pagina: ft.Page, ir_a_main, ir_a_menu):
 
     # Logo del SENA
     logo = ft.Image(
-        src="assets/Logo_sena.png", 
+        src="Logo_sena.png", 
         width=200,
         height=100
     )

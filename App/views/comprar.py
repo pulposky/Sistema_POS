@@ -33,7 +33,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     pagina.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     pagina.vertical_alignment = ft.MainAxisAlignment.CENTER
 
-    logo = ft.Image(src="assets/Logo_sena.png", width=50, height=50)
+    logo = ft.Image(src="Logo_sena.png", width=50, height=50)
     titulo = ft.Text("Sistema POS - Compras", size=15, weight="bold")
 
     subtotal = ft.Text("Subtotal: $0", weight="bold")

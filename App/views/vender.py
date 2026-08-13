@@ -49,7 +49,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # ---------------- CAMPOS ----------------
 
     logo = ft.Image(
-        src="assets/Logo_sena.png",
+        src="Logo_sena.png",
         width=50,
         height=50
     )

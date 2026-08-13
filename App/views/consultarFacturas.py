@@ -23,7 +23,7 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ================== ELEMENTOS UI ==================
 
-    logo = ft.Image(src="assets/Logo_sena.png", width=50, height=50)
+    logo = ft.Image(src="Logo_sena.png", width=50, height=50)
     titulo = ft.Text("Sistema POS", size=15, weight="bold")
     fecha_hora = ft.Text("", size=15)
     texto_usuario = ft.Text(f"Usuario: {usuario['usuario']}", size=15, weight="bold")
