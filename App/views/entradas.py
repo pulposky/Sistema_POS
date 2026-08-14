@@ -12,6 +12,19 @@ def entradas_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     pagina.window.width = 900
     pagina.window.height = 650
 
+
+    def manejar_teclado(e: ft.KeyboardEvent):
+        if e.key == "Escape":
+            if pagina.overlay and len(pagina.overlay) > 0:
+                for control in list(pagina.overlay):
+                    if hasattr(control, "open") and control.open:
+                        control.open = False
+                        pagina.update()
+                        return
+            ir_a_menu(usuario)
+
+    pagina.on_keyboard_event = manejar_teclado
+
     productos = []
     campo_fecha = ft.TextField(
         label="Fecha (AAAA-MM-DD)", value=date.today().isoformat(), width=180
