@@ -10,6 +10,7 @@ from views.inventario import inventario
 from views.consultarFacturas import consultarFacturas
 from views.crearUsuario import nuevoUsuario
 from views.entradas import entradas_view
+from views.actualizarFacturas import actualizar_facturas_view
 
 # Función encargada de centralizar las rutas de la aplicación
 def configurar_rutas(pagina):
@@ -38,7 +39,8 @@ def configurar_rutas(pagina):
             ir_a_inventario,
             ir_a_consultar_facturas,
             ir_a_nuevo_usuario,
-            ir_a_entradas
+            ir_a_entradas,
+            ir_a_actualizar_facturas
         )
 
     # -------- VENDER --------
@@ -86,6 +88,9 @@ def configurar_rutas(pagina):
             usuario
         )
 
+    def ir_a_actualizar_facturas(usuario):
+        actualizar_facturas_view(pagina, ir_a_menu, usuario)
+
     def ir_a_nuevo_usuario(usuario):
         nuevoUsuario(
             pagina,
@@ -105,6 +110,7 @@ def configurar_rutas(pagina):
         "inventario": ir_a_inventario,
         "entradas": ir_a_entradas,
         "consultar_facturas": ir_a_consultar_facturas,
+        "actualizar_facturas": ir_a_actualizar_facturas,
         "nuevo_usuario": ir_a_nuevo_usuario,
     }
 

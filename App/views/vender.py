@@ -294,7 +294,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         tabla_productos.rows.append(
             ft.DataRow(
                 cells=[
-                    ft.DataCell(ft.Text(str(producto.get('id', '-')))),
+                    ft.DataCell(ft.Text(str(producto.get('codigo', '-')))),
                     ft.DataCell(ft.Text(producto.get('nombre', 'Sin nombre'))),
                     ft.DataCell(
                     ft.TextButton(

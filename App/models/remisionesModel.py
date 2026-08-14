@@ -85,6 +85,7 @@ def obtener_remision_por_id(id_remision):
             r.id_cliente,
             r.id_usuario,
             r.notas,
+            r.estado,
             u.nombre AS nombre_usuario
         FROM remision r
         INNER JOIN usuarios u

@@ -1,6 +1,6 @@
 import flet as ft
 from models.ventasModel import (
-    crear_cliente, crear_producto
+    crear_cliente, crear_producto, existe_codigo_producto
 )
 from models.comprasModel import crear_proveedor
 from utils.notificaciones import mostrar_notificacion
@@ -67,6 +67,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
     # -------- CAMPOS FORMULARIO PRODUCTO --------
 
+    campo_codigo_producto = ft.TextField(label="Código", width=300)
     campo_nombre_producto = ft.TextField(label="Nombre", width=300)
     campo_unidad = ft.Dropdown(
         label="Unidad",
@@ -123,6 +124,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
     # Formulario oculto al inicio, solo se muestra si elige "Crear Producto"
     form_producto = ft.Column(
         [
+            campo_codigo_producto,
             campo_nombre_producto,
             campo_unidad,
             campo_empresa,
@@ -209,11 +211,11 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             pagina.run_task(enfocar, campo_nombre_proveedor)
         else:
             pagina.run_task(enfocar, campo_nombre)
-    
+
     def mostrar_form_productos():
         nonlocal fase
         fase = "crear_producto"
-        
+
         # Cambio el titulo del dialogo
         dialog.title = ft.Text("Crear Producto 📦 ", weight="bold")
 
@@ -224,7 +226,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         pagina.update()
 
         # Enfoco el primer campo del formulario
-        pagina.run_task(enfocar, campo_nombre)
+        pagina.run_task(enfocar, campo_codigo_producto)
 
     # Enfoco un campo de forma segura con un pequeño delay
     async def enfocar(campo):
@@ -290,11 +292,23 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         else:
             mensaje_proveedor.value = "Error al guardar el proveedor"
             pagina.update()
-        
-        
+
+
     def guardar_producto(e=None):
 
+        codigo = campo_codigo_producto.value.strip()
+
         # Validar campos vacíos
+        if not codigo:
+            mensaje_producto.value = "El código es obligatorio"
+            pagina.update()
+            return
+
+        if existe_codigo_producto(codigo):
+            mensaje_producto.value = f"El código '{codigo}' ya existe"
+            pagina.update()
+            return
+
         if not campo_nombre_producto.value.strip():
             mensaje_producto.value = "El nombre es obligatorio"
             pagina.update()
@@ -314,7 +328,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             mensaje_producto.value = "El stock es obligatorio"
             pagina.update()
             return
-        
+
         if not campo_empresa.value.strip():
             mensaje_producto.value = "El lugar es obligatorio"
 
@@ -335,6 +349,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
         # Crear diccionario
         datos = {
+            'codigo': codigo,
             'nombre': campo_nombre_producto.value.strip(),
             'unidad': campo_unidad.value.strip(),
             'lugar': campo_empresa.value.strip(),

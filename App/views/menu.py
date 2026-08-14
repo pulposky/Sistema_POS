@@ -5,7 +5,7 @@ import flet as ft
 # =========================================================
 # MENU DE MODULOS
 # =========================================================
-def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras, ir_a_inventario, ir_a_consultar_facturas, ir_a_nuevo_usuario, ir_a_entradas):
+def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, ir_a_compras, ir_a_inventario, ir_a_consultar_facturas, ir_a_nuevo_usuario, ir_a_entradas, ir_a_actualizar_facturas):
 
     # Limpio la pantalla
     pagina.clean()
@@ -44,6 +44,9 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     def consultar_facturas(e):
         ir_a_consultar_facturas(usuario)
+
+    def actualizar_facturas(e):
+        ir_a_actualizar_facturas(usuario)
         
     def cerrar_sesion():
         ir_a_main()
@@ -111,6 +114,14 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
                     shape=ft.RoundedRectangleBorder(radius=10),
                     text_style=ft.TextStyle(size=15, weight="bold")
                 )),
+        ft.Button("✏️ Actualizar Facturas",
+                on_click=actualizar_facturas,
+                width=250,
+                height=40,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    text_style=ft.TextStyle(size=15, weight="bold")
+                )),
         ft.Button("🚪 Cerrar sesión",
                 on_click=cerrar_sesion, width=250, height=40,
                 style=ft.ButtonStyle(
@@ -121,9 +132,10 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
 
     # validacion de rol para los botones de menu
-    if usuario.get("rol", "") != "Admin":
+    if usuario.get("rol", "") not in {"Admin", "Administrador"}:
         botones[5].disabled = True  # Nuevo Usuario
         botones[4].disabled = True  # Entradas
+        botones[7].disabled = True  # Actualizar Facturas
 
     if usuario.get("rol", "") == "Consultas":
         botones[0].disabled = True  # Facturacion
@@ -132,6 +144,7 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
         botones[3].disabled = True  # Inventario
         botones[4].disabled = True  # Entradas
         botones[5].disabled = True  # Nuevo Usuario
+        botones[7].disabled = True  # Actualizar Facturas
 
     # ---------------- TECLADO ----------------
 

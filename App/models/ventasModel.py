@@ -7,18 +7,42 @@ from database.bd import conectar
 
 def buscar_producto(nombre):
     conexion = conectar()
+    if not conexion:
+        return []
     cursor = conexion.cursor(dictionary=True)
     sql = """
         SELECT *
         FROM producto
-        WHERE nombre LIKE %s
+        WHERE nombre LIKE %s OR codigo LIKE %s
     """
-    cursor.execute(sql, (f"%{nombre}%",))
+    cursor.execute(sql, (f"%{nombre}%", f"%{nombre}%"))
     resultado = cursor.fetchall()
     cursor.close()
     conexion.close()
 
     return resultado
+
+
+# =====================================================
+# VERIFICAR SI EXISTE CÓDIGO DE PRODUCTO
+# =====================================================
+
+def existe_codigo_producto(codigo, id_producto=None):
+    conexion = conectar()
+    if not conexion:
+        return False
+    cursor = conexion.cursor(dictionary=True)
+    try:
+        if id_producto:
+            sql = "SELECT id_producto FROM producto WHERE codigo = %s AND id_producto != %s"
+            cursor.execute(sql, (codigo, id_producto))
+        else:
+            sql = "SELECT id_producto FROM producto WHERE codigo = %s"
+            cursor.execute(sql, (codigo,))
+        return cursor.fetchone() is not None
+    finally:
+        cursor.close()
+        conexion.close()
 
 # =====================================================
 # BUSCAR CLIENTES
@@ -90,6 +114,7 @@ def actualizar_producto(producto_datos):
     sql = """
         UPDATE producto
         SET
+            codigo=%s,
             nombre=%s,
             unidad=%s,
             lugar=%s,
@@ -100,6 +125,7 @@ def actualizar_producto(producto_datos):
         WHERE id_producto=%s
     """
     cursor.execute(sql, (
+        producto_datos.get('codigo', ''),
         producto_datos.get('nombre', ''),
         producto_datos.get('unidad', ''),
         producto_datos.get('lugar', ''),
@@ -462,19 +488,22 @@ def crear_producto(datos):
 
     sql = """
         INSERT INTO producto (
+            codigo,
             nombre,
             unidad,
             lugar,
             precio,
             stock,
             descripcion,
-            categoria
+            categoria,
+            estado
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'inactivo')
     """
     try:
 
         cursor.execute(sql, (
+            datos.get('codigo', ''),
             datos['nombre'],
             datos['unidad'],
             datos['lugar'],
