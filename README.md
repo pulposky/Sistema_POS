@@ -1,4 +1,3 @@
-
 # 🖥️ Sistema POS y Gestión de Inventario
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -38,7 +37,11 @@ Asegúrate de tener instalado en tu equipo:
 
 - **Git** ([Descargar Git](https://git-scm.com/))
 - **Python 3.10** o superior ([Descargar Python](https://www.python.org/downloads/))
-- **Servidor MySQL** (Recomendado: **Laragon** corriendo en el puerto `3306`)
+- **Servidor MySQL** — cualquiera de estos funciona:
+  - **Laragon** (recomendado): inicia el servicio MySQL desde el botón "Start All"
+  - **XAMPP**: inicia el servicio MySQL desde el panel de control (botón "Start" junto a MySQL)
+
+> ⚠️ Si usas **XAMPP** y también tienes **Laragon** instalado, asegúrate de que solo uno esté corriendo a la vez, ya que ambos usan el puerto `3306` por defecto.
 
 ---
 
@@ -55,22 +58,39 @@ cd tu-repositorio
 
 ### 2️⃣ Configurar la Base de Datos
 
-1. Inicia tu servidor MySQL (Laragon).
-2. Abre tu gestor de base de datos (phpMyAdmin).
-3. Importa el archivo `database.sql` incluido en la carpeta `database`. Este archivo:
-
-   - Crea la base de datos por defecto (`pos_db`).
-   - Crea todas las 10 tablas requeridas con sus llaves primarias y foráneas.
-   - Crea un usuario administrador inicial (`admin` / `admin123`) y el cliente general.
+1. Inicia tu servidor MySQL:
+   - **Laragon**: haz clic en "Start All" (o iniciar solo MySQL)
+   - **XAMPP**: abre el panel de control y haz clic en "Start" junto a MySQL
+2. Abre phpMyAdmin desde tu navegador:
+   - **Laragon**: haz clic en el enlace "Database" en la barra de tareas, o ve a `http://localhost/phpmyadmin`
+   - **XAMPP**: ve a `http://localhost/phpmyadmin`
+3. Importa el archivo `database.sql` incluido en la carpeta `App/database/`:
+   - Haz clic en la pestaña "Importar" en phpMyAdmin
+   - Selecciona el archivo `App/database/database.sql`
+   - Haz clic en "Continuar" / "Go"
+   - Este archivo crea automáticamente:
+     - La base de datos `sena_pdv`
+     - Todas las tablas necesarias con sus llaves primarias y foráneas
+     - Un usuario administrador inicial (`admin` / `admin123`) y el cliente general
 4. Verifica las credenciales de conexión en `App/database/bd.py`:
 
 ```python
 # Configuración en App/database/bd.py
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-DB_NAME = os.getenv("DB_NAME", "pos_db") # Cambiar si se usa un nombre personalizado
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")  # Laragon: vacío | XAMPP: vacío por defecto
+DB_NAME = os.getenv("DB_NAME", "sena_pdv")
+DB_PORT = int(os.getenv("DB_PORT", "3306"))  # Ambos usan 3306 por defecto
 ```
+
+> 💡 Si en XAMPP tu usuario root tiene contraseña (por defecto no la tiene), crea un archivo `.env` en la raíz del proyecto con:
+> ```
+> DB_HOST=localhost
+> DB_USER=root
+> DB_PASSWORD=tu_contraseña
+> DB_NAME=sena_pdv
+> DB_PORT=3306
+> ```
 
 ---
 
@@ -114,6 +134,11 @@ Con el entorno virtual activado y MySQL en ejecución, inicia la aplicación des
 python App/main.py
 ```
 
+> 💡 Si necesitas cambiar las credenciales de la base de datos (por ejemplo, si tu usuario root tiene contraseña), copia `.env.example` como `.env` y edita los valores:
+> ```bash
+> copy .env.example .env
+> ```
+
 ---
 
 ## 📦 Generar el Ejecutable (.exe)
@@ -138,11 +163,14 @@ pyinstaller main.spec
 
 ## 🛠️ Solución de Problemas Frecuentes (FAQ)
 
-| Problema                                        | Causa Posible                                                              | Solución                                                                                                                        |
-| :---------------------------------------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
-| `Error de conexión a la base de datos`       | El servicio MySQL está apagado o las credenciales no coinciden            | Asegúrate de que MySQL en Laragon/XAMPP esté iniciado y revisa el archivo`App/database/bd.py`.                               |
-| `Script Execution Disabled` (PowerShell)      | Política de ejecución restringida en Windows                             | Ejecuta en PowerShell:`Set-ExecutionPolicy Unrestricted -Scope Process` y luego reactiva con `.\.venv\Scripts\Activate.ps1`. |
-| `ModuleNotFoundError: No module named 'flet'` | El entorno virtual no está activado o no se instalaron los requerimientos | Activa el entorno virtual (`.\.venv\Scripts\Activate.ps1`) y vuelve a correr `pip install -r App/requirements.txt`.          |
+| Problema | Causa Posible | Solución |
+| :--- | :--- | :--- |
+| `Error de conexión a la base de datos: 2003 (HY000): Can't connect to MySQL server` | MySQL no está corriendo | **Laragon**: reinicia el servicio MySQL. **XAMPP**: abre el panel de control y haz clic en "Start" junto a MySQL. Verifica que no haya otro programa usando el puerto 3306. |
+| `Error de conexión: Unknown database 'sena_pdv'` | La base de datos no fue creada | Importa el archivo `App/database/database.sql` en phpMyAdmin. Asegúrate de que el nombre de la BD en `bd.py` sea `sena_pdv`. |
+| `Error de conexión: Access denied for user 'root'@'localhost'` | La contraseña de root no coincide | En Laragon y XAMPP por defecto root no tiene contraseña. Si la cambias, actualiza `DB_PASSWORD` en `bd.py` o crea un archivo `.env`. |
+| `Puerto 3306 en uso` | Laragon y XAMPP corriendo al mismo tiempo | Detén uno de los dos. Solo puede haber un servidor MySQL en el puerto 3306 a la vez. |
+| `Script Execution Disabled` (PowerShell) | Política de ejecución restringida en Windows | Ejecuta en PowerShell: `Set-ExecutionPolicy Unrestricted -Scope Process` y luego reactiva con `.\.venv\Scripts\Activate.ps1`. |
+| `ModuleNotFoundError: No module named 'flet'` | El entorno virtual no está activado o no se instalaron las dependencias | Activa el entorno virtual (`.\.venv\Scripts\Activate.ps1`) y vuelve a correr `pip install -r App/requirements.txt`. |
 
 ---
 
@@ -150,12 +178,12 @@ pyinstaller main.spec
 
 Este POS se conecta con el **Marketplace Web** ([github.com/pulposky/Marketplace](https://github.com/pulposky/Marketplace)), una plataforma de reserva en línea de productos agrícolas y procesados desarrollada en **Node.js** con **Express**, **EJS** y **MySQL**.
 
-| POS 🖥️ (este sistema)                            | Marketplace 🌐 (Node.js)                              |
-| :------------------------------------------------ | :---------------------------------------------------- |
-| Pago presencial y facturación                     | Reserva en línea de productos                         |
-| Gestión de inventario, compras y remisiones       | Catálogo público con búsqueda y filtros               |
-| Código de barras / QR                             | Sistema de apartados con notificaciones               |
-| Registro de ventas y control de caja              | Dashboard de estadísticas y registro de visitas       |
+| POS 🖥️ (este sistema)                      | Marketplace 🌐 (Node.js)                         |
+| :------------------------------------------- | :----------------------------------------------- |
+| Pago presencial y facturación               | Reserva en línea de productos                   |
+| Gestión de inventario, compras y remisiones | Catálogo público con búsqueda y filtros       |
+| Código de barras / QR                       | Sistema de apartados con notificaciones          |
+| Registro de ventas y control de caja         | Dashboard de estadísticas y registro de visitas |
 
 > Ambos sistemas comparten la misma base de datos MySQL (`sena_pdv`), lo que permite sincronizar inventario y clientes entre el canal en línea y las transacciones presenciales.
 
@@ -163,9 +191,9 @@ Este POS se conecta con el **Marketplace Web** ([github.com/pulposky/Marketplace
 
 | Tabla        | Uso en el POS                  | Uso en el Marketplace              |
 | :----------- | :----------------------------- | :--------------------------------- |
-| `usuarios` | Login de cajeros              | Login de admin y empleados         |
-| `clientes` | Consumidor final en ventas    | Registro de clientes que reservan  |
-| `producto` | Inventario físico (`stock`)   | Stock en línea (`limite_venta`)    |
+| `usuarios` | Login de cajeros               | Login de admin y empleados         |
+| `clientes` | Consumidor final en ventas     | Registro de clientes que reservan  |
+| `producto` | Inventario físico (`stock`) | Stock en línea (`limite_venta`) |
 
 ### Instalación conjunta
 
