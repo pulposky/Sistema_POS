@@ -6,17 +6,56 @@ from models.comprasModel import crear_proveedor
 from utils.notificaciones import mostrar_notificacion
 
 
+# ============================================================================
+# MÓDULO DE CREACIÓN DE PRODUCTOS, CLIENTES Y PROVEEDORES
+# ============================================================================
+# Diálogo modal multiuso que permite crear nuevos registros de三种 tipos:
+#   - Producto: código, nombre, unidad, empresa, precio, stock, descripción, categoría.
+#   - Cliente (Usuario): nombre, documento, dirección, teléfono, rol.
+#   - Proveedor: solo nombre.
+#
+# Flujo del diálogo:
+#   1. "elegir"         → El usuario elige entre "Producto" o "Cliente/Proveedor"
+#                         usando radio buttons.
+#   2. "crear_producto" → Si eligió Producto, se muestra el formulario completo.
+#   3. "crear_usuario"  → Si eligió Cliente o Proveedor, se muestra el formulario
+#                         correspondiente.
+#
+# El tipo de tercero (cliente o proveedor) se determina por el parámetro
+# tipo_tercero, que viene de la vista que llama a este diálogo.
+#
+# Dependencias:
+#   - models.ventasModel: crear_cliente(), crear_producto(), existe_codigo_producto().
+#   - models.comprasModel: crear_proveedor().
+#   - utils.notificaciones: mostrar_notificacion().
+# ============================================================================
+
+
 # =========================================================
 # VISTA PARA CREAR CLIENTES O PRODUCTOS
 # =========================================================
 
 
 def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
+    """
+    Crea el diálogo de creación de productos, clientes o proveedores.
 
+    Parámetros:
+        pagina (ft.Page): Página de Flet donde se mostrará el diálogo.
+        callback (callable): Función que recibe un diccionario con los datos
+            del registro creado (producto, cliente o proveedor). Se ejecuta
+            después de guardar exitosamente en la base de datos.
+        tipo_tercero (str): Tipo de tercero a crear. Puede ser "cliente"
+            o "proveedor". Determina si se muestra el formulario de cliente
+            o el de proveedor al elegir la segunda opción del radio.
+
+    Retorna:
+        ft.AlertDialog: Componente de diálogo listo para mostrarse.
+    """
     # Guardo el teclado de la vista anterior para restaurarlo al cerrar
     teclado_anterior = pagina.on_keyboard_event
 
-    # Opcion seleccionada por defecto
+    # Opcion seleccionada por defecto (Producto)
     opcion_seleccionada = "CrearP"
 
     # Evita que el dialogo se cierre mas de una vez
@@ -25,7 +64,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
     # Fase actual del dialogo: elegir opcion o llenar formulario
     fase = "elegir"
 
-    # -------- CAMPOS FORMULARIO USUARIO --------
+    # -------- CAMPOS FORMULARIO CLIENTE/USUARIO --------
 
     campo_nombre    = ft.TextField(label="Nombre",    width=300)
     campo_documento = ft.TextField(label="Documento", width=300)
@@ -55,6 +94,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
     campo_nombre_proveedor = ft.TextField(label="Nombre", width=300)
     mensaje_proveedor = ft.Text("", color=ft.Colors.RED, size=12)
 
+    # El formulario de proveedor solo tiene nombre (es más simple)
     form_proveedor = ft.Column(
         [
             campo_nombre_proveedor,
@@ -69,6 +109,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
     campo_codigo_producto = ft.TextField(label="Código", width=300)
     campo_nombre_producto = ft.TextField(label="Nombre", width=300)
+    # Dropdown de unidad de medida del producto
     campo_unidad = ft.Dropdown(
         label="Unidad",
         width=300,
@@ -80,6 +121,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             ft.dropdown.Option("Lt"),
         ]
     )
+    # Dropdown de empresa/proveedor del producto
     campo_empresa = ft.Dropdown(
         label="¿De donde viene?",
         width=300,
@@ -99,6 +141,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         max_lines=4,
         keyboard_type=ft.KeyboardType.TEXT
     )
+    # Lista de categorías de productos disponibles
     categoria_opciones = [
         "Abonos y Sustratos",
         "Frutas y Hortalizas",
@@ -118,7 +161,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         options=[ft.dropdown.Option(item) for item in categoria_opciones],
     )
 
-    # Mensaje de error o validacion
+    # Mensaje de error o validacion del producto
     mensaje_producto = ft.Text("", color=ft.Colors.RED, size=12)
 
     # Formulario oculto al inicio, solo se muestra si elige "Crear Producto"
@@ -135,14 +178,14 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             mensaje_producto
         ],
         spacing=10,
-        visible=False  # oculto hasta que el usuario elija "👤 Usuario"
+        visible=False  # oculto hasta que el usuario elija "📦 Producto"
     )
     # -------- RADIO GROUP --------
-
+    # Determino la etiqueta e icono según el tipo de tercero
     etiqueta_tercero = "Proveedor" if tipo_tercero == "proveedor" else "Usuario"
     icono_tercero = "🏢" if tipo_tercero == "proveedor" else "👤"
 
-    # Opciones que el usuario puede elegir
+    # Radio buttons para elegir entre Producto y Cliente/Proveedor
     radio_group = ft.RadioGroup(
         value="CrearP",  # opcion por defecto
         on_change=lambda e: on_cambio(e),
@@ -155,8 +198,8 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         )
     )
 
-    # Contenido del dialogo: primero el radio, luego el formulario
-    # El formulario empieza oculto
+    # Contenido del dialogo: primero el radio, luego los formularios
+    # Todos los formularios empiezan ocultos
     contenido = ft.Column(
         [radio_group, form_usuario, form_proveedor, form_producto],
         spacing=10
@@ -164,13 +207,13 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
     # -------- FUNCIONES --------
 
-    # Actualizo la opcion seleccionada cuando el usuario cambia el radio
     def on_cambio(e):
+        """Actualiza la opción seleccionada cuando el usuario cambia el radio."""
         nonlocal opcion_seleccionada
         opcion_seleccionada = e.control.value
 
-    # Cierro el dialogo y restauro el teclado anterior
     def cerrar_dialogo():
+        """Cierra el diálogo y restaura el teclado anterior."""
         nonlocal dialogo_cerrado
         if dialogo_cerrado:
             return
@@ -183,13 +226,16 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
         pagina.update()
 
-    # Cancelo sin hacer nada
     def cancelar(e=None):
+        """Cancela la creación y cierra el diálogo."""
         cerrar_dialogo()
 
-    # Cambio el dialogo a la fase de crear usuario
-    # Oculto el radio y muestro el formulario
     def mostrar_form_usuario():
+        """
+        Cambia el diálogo a la fase de creación de cliente o proveedor.
+        Oculta los radio buttons y muestra el formulario correspondiente
+        según tipo_tercero.
+        """
         nonlocal fase
         fase = "crear_usuario"
 
@@ -199,7 +245,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         else:
             dialog.title = ft.Text("Crear Cliente 👤 ", weight="bold")
 
-        # Oculto las opciones y muestro el formulario
+        # Oculto las opciones y muestro el formulario correspondiente
         radio_group.visible = False
         form_usuario.visible = tipo_tercero != "proveedor"
         form_proveedor.visible = tipo_tercero == "proveedor"
@@ -213,6 +259,10 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             pagina.run_task(enfocar, campo_nombre)
 
     def mostrar_form_productos():
+        """
+        Cambia el diálogo a la fase de creación de producto.
+        Oculta los radio buttons y muestra el formulario de producto.
+        """
         nonlocal fase
         fase = "crear_producto"
 
@@ -228,14 +278,20 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         # Enfoco el primer campo del formulario
         pagina.run_task(enfocar, campo_codigo_producto)
 
-    # Enfoco un campo de forma segura con un pequeño delay
     async def enfocar(campo):
+        """
+        Coloca el foco en un campo de texto con un pequeño delay
+        para asegurar que el campo esté listo para recibir foco.
+        """
         import asyncio
         await asyncio.sleep(0.05)
         await campo.focus()
 
-    # Guardo el cliente en la base de datos
     def guardar_usuario(e=None):
+        """
+        Valida y guarda un nuevo cliente o proveedor en la base de datos.
+        Si tipo_tercero es "proveedor", delega a guardar_proveedor().
+        """
         if tipo_tercero == "proveedor":
             guardar_proveedor()
             return
@@ -272,7 +328,10 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             pagina.update()
 
     def guardar_proveedor(e=None):
-
+        """
+        Valida y guarda un nuevo proveedor en la base de datos.
+        Solo requiere el nombre como campo obligatorio.
+        """
         if not campo_nombre_proveedor.value.strip():
             mensaje_proveedor.value = "El nombre es obligatorio"
             pagina.update()
@@ -295,7 +354,11 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
 
     def guardar_producto(e=None):
-
+        """
+        Valida y guarda un nuevo producto en la base de datos.
+        Realiza validaciones exhaustivas: código único, campos obligatorios,
+        y que precio y stock sean numéricos.
+        """
         codigo = campo_codigo_producto.value.strip()
 
         # Validar campos vacíos
@@ -304,6 +367,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             pagina.update()
             return
 
+        # Verifico que el código no esté repetido
         if existe_codigo_producto(codigo):
             mensaje_producto.value = f"El código '{codigo}' ya existe"
             pagina.update()
@@ -332,7 +396,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
         if not campo_empresa.value.strip():
             mensaje_producto.value = "El lugar es obligatorio"
 
-        # Validar números
+        # Validar que precio y stock sean numéricos
         try:
             precio = float(campo_precio.value)
         except:
@@ -347,7 +411,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             pagina.update()
             return
 
-        # Crear diccionario
+        # Creo el diccionario con todos los datos del producto
         datos = {
             'codigo': codigo,
             'nombre': campo_nombre_producto.value.strip(),
@@ -371,9 +435,14 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
             mensaje_producto.value = "Error al guardar el Producto"
             pagina.update()
 
-    # Boton confirmar: su comportamiento cambia segun la fase
     def confirmar(e=None):
-
+        """
+        Maneja la acción del botón "Confirmar".
+        Su comportamiento cambia según la fase actual:
+        - "elegir": muestra el formulario correspondiente.
+        - "crear_usuario": guarda el cliente/proveedor.
+        - "crear_producto": guarda el producto.
+        """
         # Fase 1: el usuario esta eligiendo entre Producto o Usuario
         if fase == "elegir":
             if opcion_seleccionada == "CrearU":
@@ -395,6 +464,12 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
     # -------- TECLADO --------
 
     async def teclado(e: ft.KeyboardEvent):
+        """
+        Handler de teclado del diálogo.
+
+        - Escape: cierra el diálogo.
+        - Enter: confirma la acción actual.
+        """
         if e.key == "Escape":
             cancelar()
         elif e.key == "Enter":
@@ -406,6 +481,7 @@ def Crear(pagina: ft.Page, callback, tipo_tercero="cliente"):
 
     # -------- DIALOG --------
 
+    # Construyo el diálogo modal con los radio buttons, formularios y botones
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Text("¿Que deseas crear?", weight="bold"),

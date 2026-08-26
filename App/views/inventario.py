@@ -1,3 +1,21 @@
+"""
+Vista de informe de inventario del sistema POS.
+
+Muestra una tabla con el stock calculado de cada producto sumando entradas,
+compras, ventas y remisiones. Permite recargar los datos, exportar a Excel
+y navegar con el teclado.
+
+Esta vista tiene un diseño de pantalla completa con barra superior (header)
+que muestra información del sistema, usuario y hora actualizándose en tiempo real.
+
+Atajos de teclado:
+    Escape -> Vuelve al menú principal.
+    F5     -> Recarga la lista de productos.
+
+Navegación:
+    ir_a_menu(usuario) -> Vuelve al menú principal.
+"""
+
 # VISTA PARA INVENTARIO
 # Muestra el stock calculado desde entradas, compras, ventas y remisiones.
 import flet as ft
@@ -9,6 +27,15 @@ from utils.InformeExcel import crear_informe_inventario, mostrar_mensaje
 
 
 def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
+    """
+    Renderiza el informe de inventario con tabla de productos y barra superior.
+
+    Parámetros:
+        pagina     -> Instancia de la página Flet.
+        ir_a_main  -> Callback para ir a la pantalla de bienvenida (no usado directamente).
+        ir_a_menu  -> Callback para volver al menú principal.
+        usuario    -> Diccionario con datos del usuario logueado (usuario, nombre, rol, etc.).
+    """
     # Lista con los movimientos y stock calculado de cada producto.
     productos = []
     print(f"Usuario en inventario: {usuario}")
@@ -26,31 +53,47 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ================== ELEMENTOS UI ==================
 
+    # Logo del SENA en la barra superior
     logo = ft.Image(
         src="Logo_sena.png",
         width=50,
         height=50
     )
 
+    # Texto del título del sistema en la barra superior
     titulo = ft.Text("Sistema POS", size=15, weight="bold")
+
+    # Texto que muestra la fecha y hora actual, se actualiza cada segundo
     fecha_hora = ft.Text("", size=15)
+
+    # Texto con el nombre de usuario logueado
     texto_usuario = ft.Text(f"Usuario: {usuario['usuario']}", size=15, weight="bold")
+
+    # Texto con el nombre completo del usuario logueado
     texto_nombre = ft.Text(f"Nombre: {usuario['nombre']}", size=15, weight="bold")
     
+    # Botón para volver al menú principal (también accesible con Escape)
     Volver_menu = ft.Button("Volver [Esc]", on_click=lambda _: ir_a_menu(usuario))
 
+    # Título de la sección de inventario
     titulo_inventario = ft.Text("Informe de Inventario", size=17, weight="bold")
     
+    # Contador de productos mostrados en el informe
     cantidad_productos = ft.Text("Productos en informe: 0", size=15, weight="bold")
 
     # ================== FUNCIONES ==================
 
     # Mantengo la fecha y hora actualizadas en pantalla
     async def actualizar_hora():
+        """
+        Tarea asíncrona que actualiza el texto de fecha/hora cada segundo.
+        Se ejecuta como task de Flet y se detiene automáticamente cuando
+        la vista ya no existe (captura RuntimeError).
+        """
         # Ciclo infinito mientras la vista siga activa
         while True:
             try:
-                # Si el texto todavia no esta en la pagina espero un momento
+                # Espero a que el control esté disponible en la página
                 if fecha_hora.page is None:
                     await asyncio.sleep(0.1)
                     continue
@@ -58,12 +101,13 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 await asyncio.sleep(0.1)
                 continue
             try:
-                # Coloco la fecha y hora actual
+                # Coloco la fecha y hora actual en formato legible
                 fecha_hora.value = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p")
                 fecha_hora.update()
             except RuntimeError:
                 # Si la vista ya no existe corto el ciclo
                 break
+            # Espero 1 segundo antes de actualizar de nuevo
             await asyncio.sleep(1)
 
     def cargar_productos():
@@ -71,14 +115,18 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nonlocal productos
         
         try:
+            # Obtengo los datos del informe de inventario desde el modelo
             productos = obtener_informe_inventario()
+
+            # Actualizo el contador de productos
             cantidad_productos.value = f"Productos en informe: {len(productos)}"
             
-            # Limpiar las filas existentes
+            # Limpiar las filas existentes en la tabla
             tabla_productos.rows.clear()
             
-            # Agregar cada producto a la tabla
+            # Agregar cada producto como fila en la tabla
             for producto in productos:
+                # Calculo el stock final y asigno color: rojo si es negativo, verde si es positivo
                 stock = float(producto.get("stock_final", 0))
                 color_stock = ft.Colors.RED if stock < 0 else ft.Colors.GREEN
                 
@@ -94,7 +142,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             ft.DataCell(
                                 ft.Text(
                                     formatear_cantidad(stock),
-                                    color=color_stock,
+                                    color=color_stock,    # Rojo si stock negativo, verde si positivo
                                     weight="bold"
                                 )
                             ),
@@ -103,6 +151,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     )
                 )
             
+            # Refresco la pantalla para mostrar los datos actualizados
             pagina.update()
         except Exception as e:
             print(f"Error al cargar productos: {e}")
@@ -111,6 +160,11 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # Teclado para funciones rápidas
     async def teclado(e: ft.KeyboardEvent):
+        """
+        Manejador de atajos de teclado:
+          Escape -> Vuelve al menú principal.
+          F5     -> Recarga los datos del inventario.
+        """
         # Escape vuelve al menu
         if e.key == "Escape":
             ir_a_menu(usuario)
@@ -126,7 +180,9 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def exportar_excel(_):
         """Consulta datos recientes y guarda el informe en App como .xlsx."""
         try:
+            # Obtengo los datos actuales del inventario
             datos_actuales = obtener_informe_inventario()
+            # Genero el archivo Excel con la utilidad del proyecto
             ruta = crear_informe_inventario(datos_actuales)
             mostrar_mensaje(pagina, f"Excel generado en: {ruta}")
         except Exception as error:
@@ -135,6 +191,8 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ================== TABLA DE PRODUCTOS ==================
 
+    # Tabla principal con 8 columnas: Codigo, Producto, Entradas, Compras,
+    # Ventas, Remisiones, Stock y Unidad
     tabla_productos = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Codigo")),
@@ -153,7 +211,8 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         horizontal_lines=ft.BorderSide(1, ft.Colors.BLACK),
     )
 
-    # Botones
+    # Botón de recarga: llama a cargar_productos() al hacer clic
+    # También accesible con F5
     btn_recargar = ft.Button(
         "Recargar [F5]",
         on_click=lambda _: cargar_productos(),
@@ -165,6 +224,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    # Botón de exportar a Excel: genera un archivo .xlsx con los datos actuales
     btn_exportar_excel = ft.Button(
         "Exportar Excel",
         icon=ft.Icons.DOWNLOAD,
@@ -180,14 +240,17 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # ================== PANELES ==================
 
     # Panel principal con la tabla
+    # Contiene: título del informe, contador de productos, botones de acción,
+    # separador y la tabla de productos con scroll vertical y horizontal
     panel_principal = ft.Container(
-        expand=True,
+        expand=True,                              # Ocupa todo el espacio disponible
         bgcolor=ft.Colors.WHITE,
         border=ft.Border.all(1, ft.Colors.BLACK),
         border_radius=10,
         padding=20,
         content=ft.Column(
             [
+                # Fila superior: título del informe a la izquierda, contador a la derecha
                 ft.Row(
                     [
                         titulo_inventario,
@@ -195,12 +258,16 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
+                # Fila de botones: Recargar y Exportar Excel
                 ft.Row(
                     [btn_recargar, btn_exportar_excel],
                     spacing=5
                 ),
+                # Separador visual
                 ft.Divider(),
                 # TABLA CON SCROLL
+                # Contenedor con scroll vertical (ALWAYS) que envuelve un Row
+                # con scroll horizontal para ver todas las columnas
                 ft.Container(
                     expand=True,
                     border_radius=10,
@@ -227,6 +294,9 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ================== LAYOUT PRINCIPAL ==================
 
+    # Estructura de pantalla completa:
+    #   1. Barra superior (header) con logo, título, usuario, hora y botón volver
+    #   2. Panel principal con la tabla de inventario
     pagina.add(
         ft.Column(
             [
@@ -237,6 +307,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     padding=ft.Padding.symmetric(horizontal=20, vertical=10),
                     content=ft.Row(
                         [
+                            # Lado izquierdo: información del sistema y usuario
                             ft.Row(
                                 [
                                     titulo,
@@ -250,6 +321,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                                 expand=True,
                                 alignment=ft.MainAxisAlignment.CENTER
                             ),
+                            # Lado derecho: logo del SENA
                             logo
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -257,7 +329,7 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         expand=True
                     )
                 ),
-                # Panel principal
+                # Panel principal con la tabla de inventario
                 ft.Row(
                     [
                         panel_principal
@@ -269,11 +341,11 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 )
             ],
             expand=True,
-            spacing=0
+            spacing=0             # Sin espacio entre header y panel principal
         )
     )
 
-    # Activo los atajos de teclado
+    # Activo los atajos de teclado (Escape y F5)
     pagina.on_keyboard_event = teclado
 
     # Refresco la pantalla
@@ -282,5 +354,5 @@ def inventario(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Cargo los productos con stock bajo o negativo
     cargar_productos()
 
-    # Inicio la tarea que actualiza la hora
+    # Inicio la tarea que actualiza la hora cada segundo
     pagina.run_task(actualizar_hora)

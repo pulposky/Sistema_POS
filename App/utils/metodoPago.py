@@ -4,17 +4,52 @@ import flet as ft
 import traceback
 
 
-# =========================================================
-# PARA RECIBIR METODOS DE PAGOS DIFERENTES
-# =========================================================
+# ============================================================================
+# MÓDULO DE MÉTODO DE PAGO
+# ============================================================================
+# Diálogo modal que permite al usuario elegir y configurar el método de
+# pago de una venta: Transferencia, Efectivo, Mixto o Crédito.
+#
+# Características:
+#   - Calcula en tiempo real el faltante y el cambio según los montos ingresados.
+#   - Para Transferencia pura, el monto total se registra automáticamente.
+#   - Para Crédito, no se requiere ningún monto (la deuda queda pendiente).
+#   - Para Mixto, permite dividir entre efectivo y transferencia.
+#   - Incluye un campo de notas para registrar banco, comprobante o referencia.
+#
+# Flujo:
+#   1. El usuario elige un método de pago con los radio buttons.
+#   2. Ingresa los montos correspondientes.
+#   3. Presiona Confirmar (o Enter) para enviar el resultado al callback.
+#   4. El callback recibe un diccionario con todos los datos del pago.
+# ============================================================================
+
 
 def metodo_pago_view(pagina: ft.Page, total, callback):
+    """
+    Crea el diálogo de selección de método de pago.
 
+    Parámetros:
+        pagina (ft.Page): Página de Flet donde se mostrará el diálogo.
+        total (float): Monto total de la venta a pagar.
+        callback (callable): Función que recibe un diccionario con la
+            información del pago al confirmar. El diccionario contiene:
+            - metodo_pago (str): "Transferencia", "Efectivo", "Mixto" o "Credito".
+            - dinero_recibido (float): Suma de efectivo + transferencia.
+            - efectivo (float): Monto en efectivo.
+            - transferencia (float): Monto por transferencia.
+            - cambio (float): Cambio a devolver (positivo si se dio de más).
+            - notas (str): Notas adicionales (banco, comprobante, etc.).
+
+    Retorna:
+        ft.AlertDialog: Componente de diálogo listo para mostrarse.
+    """
+    # Guardo el handler de teclado anterior para restaurarlo al cerrar
     teclado_anterior = pagina.on_keyboard_event
     dialogo_cerrado = False
     metodo_actual = "Transferencia" # Selecciono transferencia por defecto porque es lo más común en ventas grandes
 
-    # ---------------- CAMPOS ----------------
+    # ---------------- CAMPOS DE ENTRADA ----------------
 
     campo_efectivo = ft.TextField(
         label="Dinero en efectivo",
@@ -28,25 +63,26 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         value="0"
     )
 
+    # Textos informativos que se actualizan en tiempo real
     texto_total    = ft.Text(f"Total a pagar: ${total:,.0f}", size=14, weight="bold")
     texto_faltante = ft.Text(f"Faltante: ${total:,.0f}",     size=14, color=ft.Colors.RED)
     texto_cambio   = ft.Text("Cambio: $0",                   size=14, color=ft.Colors.GREEN)
 
-    # Fila de efectivo, oculto por defecto 
+    # Fila de efectivo, oculto por defecto (solo se muestra si se elige Efectivo o Mixto)
     fila_efectivo = ft.Column(
         [ft.Text("Efectivo:", weight="bold"), campo_efectivo],
         spacing=5,
         visible=False
     )
 
-    # Fila de transferencia, visible por defecto
+    # Fila de transferencia, visible por defecto (transferencia es el método más común)
     fila_transferencia = ft.Column(
         [ft.Text("Transferencia:", weight="bold"), campo_transferencia],
         spacing=5,
         visible=True
     )
 
-    # Contenedor principal de campos
+    # Contenedor principal que agrupa los campos de pago, faltante y cambio
     campos_pago = ft.Column(
         [
             fila_transferencia,
@@ -59,7 +95,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         visible=False
     )
 
-    # Mensaje para credito
+    # Mensaje informativo para el pago a crédito
     texto_credito = ft.Text(
         "✓ La deuda quedará pendiente en el sistema",
         size=13,
@@ -67,6 +103,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         visible=False
     )
 
+    # Campo de notas: se usa para banco, número de comprobante o referencia
     campo_nota = ft.TextField(
         label="Notas",
         hint_text="Ej.: banco, número de comprobante o referencia",
@@ -77,7 +114,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         visible=False,
     )
 
-    # Mensaje para transferencia pura
+    # Mensaje informativo para transferencia pura
     texto_transferencia = ft.Text(
         "✓ Pago por transferencia por el total",
         size=13,
@@ -88,6 +125,12 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
     # ---------------- FUNCIONES ----------------
 
     def calcular(e=None):
+        """
+        Calcula el faltante y el cambio en tiempo real cuando el usuario
+        modifica los montos de efectivo o transferencia.
+        Se ejecuta cada vez que cambia el contenido de cualquiera de los
+        dos campos de monto.
+        """
         try:
             efectivo      = float(campo_efectivo.value      or 0)
             transferencia = float(campo_transferencia.value or 0)
@@ -96,10 +139,12 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             cambio        = suma - total
 
             if faltante > 0:
+                # Aún no se cubre el total: muestro el faltante en rojo
                 texto_faltante.value = f"Faltante: ${faltante:,.0f}"
                 texto_faltante.color = ft.Colors.RED
                 texto_cambio.value   = "Cambio: $0"
             else:
+                # El pago cubre o supera el total: muestro "Cubierto" en verde
                 texto_faltante.value = "✓ Cubierto"
                 texto_faltante.color = ft.Colors.GREEN
                 texto_cambio.value   = f"Cambio: ${cambio:,.0f}"
@@ -109,10 +154,17 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         pagina.update()
 
     def seleccionar_metodo(e):
+        """
+        Maneja el cambio de selección del método de pago.
+        Muestra u oculta los campos según el método elegido.
+
+        Parámetros:
+            e: Evento del RadioGroup con el valor seleccionado en e.control.value.
+        """
         nonlocal metodo_actual
         metodo_actual = e.control.value
 
-        # Oculto todo primero
+        # Oculto todo primero para luego mostrar solo lo necesario
         campos_pago.visible          = False
         texto_credito.visible        = False
         texto_transferencia.visible  = False
@@ -122,16 +174,19 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         campo_nota.value             = ""
 
         if metodo_actual == "Efectivo":
+            # Solo campo de efectivo, reseteo transferencia a 0
             campos_pago.visible      = True
             fila_efectivo.visible    = True
             campo_transferencia.value = "0"
 
         elif metodo_actual == "Transferencia":
+            # Transferencia pura: el monto es el total automáticamente
             texto_transferencia.visible = True
             # En transferencias se registra el banco o comprobante.
             campo_nota.visible = True
 
         elif metodo_actual == "Mixto":
+            # Muestro ambos campos (efectivo y transferencia) y campo de notas
             campos_pago.visible          = True
             fila_efectivo.visible        = True
             fila_transferencia.visible   = True
@@ -139,6 +194,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             campo_nota.visible           = True
 
         elif metodo_actual == "Credito":
+            # No hay campos de monto, solo muestro el mensaje de crédito
             texto_credito.visible = True
             campo_nota.visible = True
 
@@ -146,6 +202,12 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         pagina.update()
 
     def confirmar(e=None):
+        """
+        Confirma el pago y ejecuta el callback con los datos.
+        Valida que el monto cubra el total (excepto para crédito).
+        Cierra el diálogo antes de ejecutar el callback para evitar
+        problemas de UI si el callback tarda.
+        """
         # 1. Crédito: no requiere validar montos
         if metodo_actual == "Credito":
             cerrar_dialogo()
@@ -163,7 +225,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                 traceback.print_exc()
             return
 
-        # 2. Transferencia pura
+        # 2. Transferencia pura: el total se paga completo por transferencia
         if metodo_actual == "Transferencia":
             cerrar_dialogo()
             try:
@@ -220,6 +282,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             traceback.print_exc()
 
     def cerrar_dialogo():
+        """Cierra el diálogo y restaura el handler de teclado anterior."""
         nonlocal dialogo_cerrado
         if dialogo_cerrado:
             return
@@ -230,24 +293,30 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         pagina.update()
 
     def cancelar(e=None):
+        """Cancela el pago y cierra el diálogo."""
         cerrar_dialogo()
 
+    # Asigno los callbacks de cambio de texto para calcular en tiempo real
     campo_efectivo.on_change      = calcular
     campo_transferencia.on_change = calcular
 
     # ---------------- TECLADO ----------------
 
     async def teclado(e: ft.KeyboardEvent):
+        """Maneja las teclas del diálogo: Escape cancela, Enter confirma."""
         if e.key == "Escape":
             cancelar()
         elif e.key == "Enter":
             confirmar()
 
     async def teclado_pagina(e: ft.KeyboardEvent):
+        """Wrapper del handler de teclado para la página."""
         await teclado(e)
 
     # ---------------- DIALOG ----------------
 
+    # Construyo el diálogo con los radio buttons de método de pago,
+    # los campos de monto y los botones de acción
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Text("Método de pago", weight="bold"),
@@ -258,6 +327,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                 [
                     texto_total,
                     ft.Divider(),
+                    # Radio buttons para elegir el método de pago
                     ft.RadioGroup(
                         value="Transferencia",
                         on_change=seleccionar_metodo,
@@ -292,5 +362,6 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         actions_alignment=ft.MainAxisAlignment.END
     )
 
+    # Reemplazo el teclado de la vista actual para manejar Escape/Enter
     pagina.on_keyboard_event = teclado_pagina
     return dialog

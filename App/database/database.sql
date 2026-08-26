@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS `producto` (
   `precio` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
   `categoria` VARCHAR(100) DEFAULT 'Otros',
   `stock` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  `limite_venta` INT NOT NULL DEFAULT 0,
   `estado` VARCHAR(50) DEFAULT 'inactivo',
   `descripcion` VARCHAR(250)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -183,6 +184,67 @@ CREATE TABLE IF NOT EXISTS `detalle_remision` (
   FOREIGN KEY (`id_remision`) REFERENCES `remision`(`id_remision`),
   FOREIGN KEY (`id_producto`) REFERENCES `producto`(`id_producto`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- INTEGRACION CON MARKETPLACE WEB
+-- ============================================================
+-- Este bloque sincroniza la base de datos compartida con el
+-- Marketplace web (https://github.com/pulposky/Marketplace).
+--
+-- Si la base fue creada primero por el Marketplace, estas
+-- instrucciones no alteran nada (todo usa IF NOT EXISTS).
+-- Si la base fue creada primero por el POS, se agregan las
+-- columnas y tablas que la web necesita para funcionar.
+-- ============================================================
+
+-- Columna que la web usa para controlar el stock en linea
+-- (el POS solo usa producto.stock para el inventario fisico)
+ALTER TABLE `producto`
+  ADD COLUMN IF NOT EXISTS `limite_venta` INT NOT NULL DEFAULT 0;
+
+-- ------------------------------------------------------------
+-- Tabla: apartados (reservas de la web)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `apartados` (
+  `id_apartado` INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre_cliente` VARCHAR(255) NOT NULL,
+  `producto` INT NOT NULL,
+  `cantidad` INT NOT NULL DEFAULT 1,
+  `estado` ENUM('pendiente', 'confirmado', 'cancelado', 'entregado') NOT NULL DEFAULT 'pendiente',
+  `cancelado_por` ENUM('admin', 'cliente') DEFAULT NULL,
+  `fecha` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`producto`) REFERENCES `producto`(`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX IF NOT EXISTS `idx_apartados_estado` ON `apartados`(`estado`);
+CREATE INDEX IF NOT EXISTS `idx_apartados_cliente` ON `apartados`(`nombre_cliente`);
+
+-- ------------------------------------------------------------
+-- Tabla: notificaciones (alertas para el admin)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `notificaciones` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `titulo` VARCHAR(255) NOT NULL,
+  `mensaje` TEXT NOT NULL,
+  `fecha` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `leido` TINYINT(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ------------------------------------------------------------
+-- Tabla: page_views (registro de visitas del marketplace)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `page_views` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `ruta` VARCHAR(255) NOT NULL,
+  `usuario` VARCHAR(255) DEFAULT NULL,
+  `ip` VARCHAR(45) DEFAULT NULL,
+  `user_agent` TEXT DEFAULT NULL,
+  `fecha` DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- FIN INTEGRACION MARKETPLACE WEB
+-- ============================================================
 
 -- ------------------------------------------------------------
 -- Informe de inventario calculado por movimientos.

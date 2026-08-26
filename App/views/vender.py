@@ -14,65 +14,132 @@ from utils.notificaciones import mostrar_notificacion
 # =========================================================
 # VISTA PRINCIPAL PARA BUSCAR Y REALIZAR VENTAS
 # =========================================================
-# Aquí se construye la interfaz de ventas y se conectan los eventos con el controlador.
+# Este módulo contiene la función principal `vender()` que construye
+# la interfaz gráfica completa del módulo de ventas del sistema POS.
+#
+# FUNCIONALIDADES:
+#   - Agregar productos a la tabla de venta desde el buscador (F3)
+#   - Seleccionar cliente para la factura (F1)
+#   - Editar cantidad y descuento de cada producto inline (click en celda)
+#   - Calcular subtotal, descuento y total en tiempo real
+#   - Confirmar la venta y generar el PDF de la factura
+#   - Consultar facturas guardadas y navegar entre ellas (F6/F7)
+#   - Anular facturas existentes (solo admin/Aprendiz con permisos)
+#   - Imprimir una factura ya consultada
+#   - Crear nuevos productos o clientes desde un diálogo (F8)
+#   - Alternar entre crear nueva factura en la misma ventana o en una nueva (F4)
+#
+# ATAJOS DE TECLADO:
+#   F1  → Buscar cliente
+#   F2  → Facturar (confirmar venta)
+#   F3  → Buscar producto
+#   F4  → Nueva factura (1ra vez: limpia, 2da vez: abre nueva ventana)
+#   F5  → Borrar/Anular factura
+#   F6  → Siguiente factura guardada
+#   F7  → Anterior factura guardada
+#   F8  → Crear producto o cliente
+#   Escape → Volver al menú principal
+#
+# NAVEGACIÓN:
+#   - ir_a_menu: vuelve al menú principal del sistema
+#   - ir_a_main: vuelve a la pantalla principal (no se usa directamente aquí)
+#
+# FLUJO TÍPICO:
+#   1. El usuario selecciona un cliente (F1)
+#   2. Agrega productos (F3) que se insertan en la tabla
+#   3. Puede editar cantidades y descuentos haciendo clic en las celdas
+#   4. Presiona F2 o el botón "Facturar" para elegir método de pago
+#   5. Se genera el PDF y la factura se guarda en la base de datos
+#
 def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 #------------------- DATOS -----------------
 
-    # Lista donde se guardan los productos agregados a la venta
+    # Lista donde se guardan los productos agregados a la venta.
+    # Cada elemento es un diccionario con: id, nombre, cantidad, unidad,
+    # precio, descuento, subtotal, lugar, etc.
     productos = []
     print (f"Usuario en vender: {usuario}")
 
-    # Cliente seleccionado actualmente para la factura
+    # Cliente seleccionado actualmente para la factura.
+    # Se asigna cuando el usuario elige un cliente desde el buscador (F1).
+    # Es un diccionario con nombre, rol, id, etc.
     cliente_actual = None
 
-    # Variables para navegación de facturas guardadas
+    # Lista de facturas cargadas desde la base de datos para navegación (F6/F7)
     facturas = []
+
+    # Índice actual dentro de la lista de facturas cargadas.
+    # Se usa para saber qué factura se está mostrando (-1 = ninguna).
     index_factura = -1
+
+    # Bandera que indica si estamos en modo consulta (factura ya guardada)
+    # o en modo edición (factura nueva en proceso).
+    # En modo consulta: no se pueden agregar/eliminar/editar productos,
+    # solo se puede imprimir o anular.
     modo_consulta = False
+
+    # ID de la factura que se está consultando actualmente.
+    # None si no hay factura cargada.
     id_factura_actual = None
 
-    # Control para alternar entre crear una nueva factura en la misma ventana o abrir otra ventana
+    # Control para alternar entre crear una nueva factura en la misma ventana o abrir otra ventana.
+    # Empieza en True para que la primera pulsación de F4 limpie la factura actual.
+    # La segunda pulsación abre una nueva ventana con la misma vista.
     f4_siguiente_abrir_ventana = True
 #-------------------------------------------
 
-    # Limpio la consola y la pantalla
+    # Limpio la consola y la pantalla para empezar la vista desde cero
     pagina.clean()
 
-    # Tamaño de la ventana para el login
+    # Tamaño de la ventana para la pantalla de ventas
     pagina.window.width = 1500
     pagina.window.height = 800
 
-    # Centro todo el contenido
+    # Centro todo el contenido en la página
     pagina.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     pagina.vertical_alignment = ft.MainAxisAlignment.CENTER
 
     # ---------------- CAMPOS ----------------
 
+    # Logo del SENA en la esquina superior derecha
     logo = ft.Image(
         src="Logo_sena.png",
         width=50,
         height=50
     )
 
+    # Título principal del sistema
     titulo = ft.Text("Sistema POS", size=15, weight="bold")
 
+    # Textos del resumen de venta en el panel derecho.
+    # Se actualizan dinámicamente cada vez que se agrega/modifica/elimina un producto.
     subtotal  = ft.Text("Subtotal: $0",  weight="bold")
     descuento = ft.Text("Descuento: $0", weight="bold")
     total     = ft.Text("Total: $0",     weight="bold")
 
+    # Reloj en tiempo real que se muestra en la barra superior
     fecha_hora  = ft.Text("", size=15)
+
+    # Campo de solo lectura que muestra el cliente seleccionado actualmente
     nombreCliente = ft.TextField(label="Cliente seleccionado ", width=260, read_only=True)
+
+    # Información del usuario logueado que se muestra en la barra superior
     texto_usuario = ft.Text(f"Usuario: {usuario['usuario']}", size=15, weight="bold")
     texto_nombre  = ft.Text(f"Nombre: {usuario['nombre']}",  size=15, weight="bold")
 
+    # Número de factura actual (se actualiza al cargar o crear facturas)
     numeroFactura = ft.Text("Número de factura: 0001", size=17, weight="bold")
+
+    # Campos de información de la factura consultada (ocultos por defecto,
+    # se muestran solo cuando se carga una factura existente)
     texto_fecha = ft.Text("", size=13, weight="bold", visible=False)
     usuarioFactura = ft.Text("", size=13, weight="bold", visible=False)
     notaFactura = ft.Text("", size=13, visible=False)
 
     # ---------------- FUNCIONES ----------------
 
-    # Actualizo subtotal, descuento y total segun los productos agregados
+    # Recalcula el subtotal, descuento y total de la venta
+    # consultando el controlador con la lista actual de productos.
     def actualizar_totales():
 
         resumen = ventas_controller.calcular_resumen_venta(productos)
@@ -82,12 +149,18 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         total.value = f"Total: ${resumen['total']:,.2f}"
         pagina.update()
 
+    # Permite editar el descuento de un producto haciendo clic en la celda.
+    # Se reemplaza el texto por un TextField editable; al presionar Enter
+    # se guarda el nuevo descuento y se actualiza la fila y los totales.
+    # Los Aprendices no pueden editar descuentos en modo consulta.
     def editar_descuento(index):
 
+        # Bloquear edición si es Aprendiz en modo consulta
         if modo_consulta and usuario.get("rol", "") == "Aprendiz":
             return
 
         producto = productos[index]
+        # Crear campo de texto temporal con el descuento actual
         campo = ft.TextField(
             value=str(producto.get("descuento", 0)),
             autofocus=True,
@@ -96,7 +169,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         def guardar_descuento(e):
             try:
                 nuevo_descuento = float(campo.value)
+                # Actualizar el descuento en el controlador (recalcula subtotal interno)
                 ventas_controller.actualizar_descuento_producto(producto, nuevo_descuento)
+                # Restaurar la celda de descuento con el nuevo valor como botón clickeable
                 tabla_productos.rows[index].cells[5] = ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(
@@ -105,11 +180,13 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         on_click=lambda e: editar_descuento(index)
                     )
                 )
+                # Actualizar la celda de subtotal con el nuevo valor
                 tabla_productos.rows[index].cells[6] = ft.DataCell(
                     ft.Text(
                         f"${producto['subtotal']:,.2f}"
                     )
                 )
+                # Recrear la columna de acciones por si cambió el estado del stock
                 tabla_productos.rows[index].cells[8] = crear_celda_acciones(
                     producto,
                     index
@@ -118,17 +195,23 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 pagina.update()
             except:
                 pass
+        # Reemplazar la celda de descuento con el campo editable
         tabla_productos.rows[index].cells[5] = ft.DataCell(campo)
         campo.on_submit = guardar_descuento
         pagina.update()
 
 
+    # Permite editar la cantidad de un producto haciendo clic en la celda.
+    # Funciona igual que editar_descuento: reemplaza el texto por un TextField
+    # y al presionar Enter guarda el nuevo valor.
     def editar_cantidad(index):
 
+        # Bloquear edición si es Aprendiz en modo consulta
         if modo_consulta and usuario.get("rol", "") == "Aprendiz":
             return
 
         producto = productos[index]
+        # Campo temporal con la cantidad actual
         campo = ft.TextField(
             value=str(producto["cantidad"]),
             autofocus=True,
@@ -137,7 +220,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         def guardar(e):
             try:
                 nueva_cantidad = float(campo.value)
+                # Actualizar cantidad en el controlador (recalcula subtotal)
                 ventas_controller.actualizar_cantidad_producto(producto, nueva_cantidad)
+                # Restaurar la celda de cantidad con el valor formateado
                 tabla_productos.rows[index].cells[2] = ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(
@@ -148,11 +233,13 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         on_click=lambda e: editar_cantidad(index)
                     )
                 )
+                # Actualizar la celda de subtotal
                 tabla_productos.rows[index].cells[6] = ft.DataCell(
                     ft.Text(
                         f"${producto['subtotal']:,.2f}"
                     )
                 )
+                # Recrear acciones por si cambió el stock
                 tabla_productos.rows[index].cells[8] = crear_celda_acciones(
                     producto,
                     index
@@ -162,20 +249,29 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
             except:
                 pass
+        # Reemplazar celda de cantidad con campo editable
         tabla_productos.rows[index].cells[2] = ft.DataCell(campo)
         campo.on_submit = guardar
         pagina.update()
 
+    # Delega al controlador el cálculo del stock restante
+    # (stock disponible menos lo que ya se agregó a la venta)
     def obtener_stock_restante(producto):
         return ventas_controller.obtener_stock_restante(producto)
 
+    # Formatea el stock para mostrarlo con decimales y signo
     def formatear_stock(stock):
         return ventas_controller.formatear_stock(stock)
 
+    # Crea la celda de acciones de cada fila: muestra un indicador de stock
+    # negativo (en rojo) si se excedió el stock, y un botón X para eliminar
+    # el producto de la venta.
+    # parámetro deshabilitado: cuando True (modo consulta), el botón X no funciona.
     def crear_celda_acciones(producto, index, deshabilitado=False):
         stock_restante = obtener_stock_restante(producto)
         controles = []
 
+        # Si el stock restante es negativo, mostrar advertencia en rojo
         if stock_restante < 0:
             controles.append(
                 ft.Text(
@@ -186,6 +282,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 )
             )
 
+        # Botón X para eliminar el producto de la tabla
         controles.append(
             ft.IconButton(
                 icon=ft.Icons.CLOSE,
@@ -204,13 +301,19 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
 
 
+    # Elimina un producto de la tabla de venta por su índice.
+    # Reconstruye toda la tabla desde cero para mantener los índices correctos.
+    # No funciona en modo consulta (factura ya guardada).
     def eliminar_producto(index):
 
+        # En modo consulta no se permite eliminar
         if modo_consulta:
             return
 
+        # Quitar el producto de la lista a través del controlador
         ventas_controller.quitar_producto_de_venta(productos, index)
 
+        # Limpiar y reconstruir todas las filas de la tabla
         tabla_productos.rows.clear()
 
         for i, p in enumerate(productos):
@@ -219,17 +322,21 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 p["cantidad"]
             )
 
+            # Agregar cada producto como una fila completa de la tabla
             tabla_productos.rows.append(
                 ft.DataRow(
                     cells=[
+                        # Columna 0: Código del producto
                         ft.DataCell(
                             ft.Text(str(p.get("id", "-")))
                         ),
 
+                        # Columna 1: Nombre del producto
                         ft.DataCell(
                             ft.Text(p.get("nombre", "Sin nombre"))
                         ),
 
+                        # Columna 2: Cantidad (clickeable para editar)
                         ft.DataCell(
                             ft.TextButton(
                                 content=ft.Text(cantidad_texto),
@@ -237,14 +344,17 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             )
                         ),
 
+                        # Columna 3: Unidad de medida
                         ft.DataCell(
                             ft.Text(str(p.get("unidad", "UND")))
                         ),
 
+                        # Columna 4: Precio unitario
                         ft.DataCell(
                             ft.Text(f"${p.get('precio', 0):,.2f}")
                         ),
 
+                        # Columna 5: Descuento (clickeable para editar)
                         ft.DataCell(
                             ft.TextButton(
                                 content=ft.Text(f"{p.get('descuento', 0):,.2f}%"),
@@ -252,32 +362,37 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             )
                         ),
 
+                        # Columna 6: Subtotal del producto
                         ft.DataCell(
                             ft.Text(f"${p.get('subtotal', 0):,.2f}")
                         ),
 
+                        # Columna 7: Empresa/lugar del producto
                         ft.DataCell(
                             ft.Text(str(p.get('lugar', '-')))
                         ),
 
-                        # BOTON X
+                        # Columna 8: Botón eliminar (X roja)
                         crear_celda_acciones(p, i)
                     ]
                 )
             )
 
+        # Recalcular totales después de eliminar
         actualizar_totales()
 
         pagina.update()
 
-    # Agrego el producto seleccionado en el buscador a la tabla de la venta
-    # Agrego el producto seleccionado en la tabla
+    # Agrega un producto a la tabla de venta cuando el usuario lo selecciona
+    # desde el diálogo de búsqueda (F3).
+    # El producto viene del controlador con los datos ya procesados.
     def agregar_producto_a_tabla(producto):
 
+        # No agregar si estamos en modo consulta
         if modo_consulta:
             return
 
-        # Obtengo el stock actual del producto
+        # Obtener el stock actual del producto
         stock_actual = producto.get("stock", 0)
 
         # Cantidad que el usuario quiere agregar
@@ -287,10 +402,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # LO AGREGO NORMAL
         # ---------------------------------------------
 
+        # Agregar el producto a la lista y obtener la referencia actualizada
         producto = ventas_controller.agregar_producto_a_venta(productos, producto)
         cantidad_texto = ventas_controller.formatear_cantidad(
             cantidad
         )
+        # Insertar una nueva fila al final de la tabla
         tabla_productos.rows.append(
             ft.DataRow(
                 cells=[
@@ -317,10 +434,13 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             )
         )
 
+        # Actualizar subtotal, descuento y total después de agregar
         actualizar_totales()
         tabla_productos.update()
 
-    # Mantengo la fecha y hora actualizadas en pantalla
+    # Tarea asíncrona que actualiza el reloj en la barra superior cada segundo.
+    # Se ejecuta como una tarea de fondo con run_task().
+    # Se detiene automáticamente cuando la vista ya no está activa (RuntimeError).
     async def actualizar_hora():
 
         # Ciclo infinito mientras la vista siga activa
@@ -334,14 +454,17 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 await asyncio.sleep(0.1)
                 continue
             try:
-                # Coloco la fecha y hora actual
+                # Coloco la fecha y hora actual en formato 12 horas
                 fecha_hora.value = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p")
                 fecha_hora.update()
             except RuntimeError:
                 # Si la vista ya no existe corto el ciclo
                 break
+            # Esperar 1 segundo antes de actualizar
             await asyncio.sleep(1)
 
+    # Callback que se ejecuta después de confirmar el método de pago.
+    # Llama al controlador para guardar la factura en la BD y generar el PDF.
     def confirmar_factura(pago):
         resultado = ventas_controller.confirmar_factura(
             pago=pago,
@@ -357,6 +480,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         print(f"Factura {resultado['id_factura']} guardada")
         print(f"PDF: {resultado['ruta_pdf']}")
+        # Limpiar la tabla para una nueva venta
         limpiar_factura()
         mostrar_notificacion(
             pagina, f"Venta #{resultado['id_factura']} guardada correctamente."
@@ -364,29 +488,36 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ---------------- FACTURAR ----------------
 
+    # Abre el diálogo de método de pago para confirmar la venta.
+    # Valida que haya productos y que no esté en modo consulta.
     def facturar():
 
+        # Los usuarios normales no pueden facturar desde modo consulta
         if modo_consulta and usuario.get("rol", "").lower() != "admin":
             print("No se puede facturar en modo consulta")
             return
+        # No permitir facturar sin productos
         if not productos:
             print("No hay productos en la factura")
             return
 
+        # Calcular el total para mostrar en el diálogo de pago
         total_valor = ventas_controller.calcular_total(productos)
 
-        # Crear dialogo
+        # Crear dialogo de método de pago (efectivo, tarjeta, etc.)
         dialog = metodo_pago_view(
             pagina,
             total_valor,
             confirmar_factura
         )
 
-        # Abrir dialogo
+        # Abrir dialogo como overlay sobre la vista actual
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
 
+    # Resetea toda la vista a su estado inicial para comenzar una nueva venta.
+    # Limpia productos, cliente, tabla, campos de texto y totales.
     def limpiar_factura():
 
         nonlocal productos
@@ -394,13 +525,17 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nonlocal id_factura_actual
         nonlocal cliente_actual
 
+        # Vaciar la lista de productos y el cliente seleccionado
         productos = []
         cliente_actual = None
 
+        # Limpiar todas las filas de la tabla
         tabla_productos.rows.clear()
 
+        # Vaciar campo de cliente
         nombreCliente.value = ""
 
+        # Ocultar campos de información de factura consultada
         usuarioFactura.value = ""
         usuarioFactura.visible = False
         texto_fecha.value = ""
@@ -408,20 +543,30 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         notaFactura.value = ""
         notaFactura.visible = False
 
+        # Resetear el número de factura a "Nueva"
         numeroFactura.value = "Número de factura: Nueva"
         numeroFactura.color = ft.Colors.BLACK
+
+        # Ocultar botón de imprimir (solo visible en modo consulta)
         btn_imprimir_consulta.visible = False
 
+        # Recalcular totales (quedará en $0)
         actualizar_totales()
 
+        # Salir del modo consulta
         modo_consulta = False
         id_factura_actual = None
 
         pagina.update()
 
+    # Carga una factura existente desde la base de datos por su ID.
+    # Reconstruye la tabla de productos, muestra datos del cliente,
+    # usuario que vendió, fecha, notas y el estado (anulada o activa).
+    # Retorna True si se cargó correctamente, False si hubo error.
     def cargar_factura(id_venta):
         nonlocal productos, modo_consulta, id_factura_actual
 
+        # Solicitar los datos al controlador
         datos = ventas_controller.cargar_factura(id_venta)
         if not datos:
             return False
@@ -429,12 +574,17 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         cliente = datos["cliente"]
         productos = datos["productos"]
         factura = datos["factura"]
+
+        # Limpiar la tabla antes de reconstruirla
         tabla_productos.rows.clear()
+
+        # Mostrar fecha de la factura
         texto_fecha.value = (
             f"Fecha: {factura['fecha'].strftime('%d/%m/%Y %H:%M:%S')}"
         )
         texto_fecha.visible = True
 
+        # Reconstruir cada fila de la tabla con los datos de la factura
         for i, producto in enumerate(productos):
             cantidad_texto = ventas_controller.formatear_cantidad(producto["cantidad"])
             tabla_productos.rows.append(
@@ -452,21 +602,27 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.DataCell(ft.Text(f"{producto.get('descuento', 0):,.2f}%")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
                     ft.DataCell(ft.Text(producto["lugar"])),
+                    # En modo consulta el botón X está deshabilitado
                     crear_celda_acciones(producto, i, deshabilitado=True)
                 ])
             )
 
+        # Mostrar nombre del cliente seleccionado
         nombreCliente.value = f"{cliente['nombre']} - {cliente['rol']}" if cliente else "Sin cliente"
 
+        # Mostrar quién realizó la venta
         usuarioFactura.value = (
             f"Vendido por: {factura.get('nombre_usuario', 'Sin usuario')}"
         )
         usuarioFactura.visible = True
+
+        # Mostrar notas si existen
         notas = (factura.get("notas") or "").strip()
         notaFactura.value = f"Nota: {notas}"
         notaFactura.visible = bool(notas)
-        if datos["factura"]["estado"] == "ANULADA":
 
+        # Mostrar número de factura con color según estado
+        if datos["factura"]["estado"] == "ANULADA":
             numeroFactura.value = (
                 f"FACTURA ANULADA #{id_venta:04d}"
             )
@@ -476,18 +632,26 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 f"Número de factura: {id_venta:04d}"
             )
             numeroFactura.color = ft.Colors.BLACK
+
         actualizar_totales()
+
+        # Activar modo consulta: bloquea edición de productos
         modo_consulta = True
         id_factura_actual = id_venta
+
+        # Mostrar botón de imprimir (solo disponible en modo consulta)
         btn_imprimir_consulta.visible = True
         pagina.update()
         return True
 
+    # Genera el PDF de la factura consultada y lo envía a imprimir.
+    # Solo funciona si hay una factura cargada en modo consulta.
     def imprimir_factura_consultada():
         if not modo_consulta or id_factura_actual is None:
             print("Primero consulta una factura para imprimirla")
             return
 
+        # Delegar al controlador la generación del PDF
         ruta_pdf = ventas_controller.imprimir_factura_consultada(
             id_factura_actual,
             usuario
@@ -498,6 +662,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         print(f"Factura {id_factura_actual} enviada a imprimir")
 
+    # Maneja la pulsación de F4 para nueva factura.
+    # Primera vez: limpia la factura actual en la misma ventana.
+    # Segunda vez: abre una nueva ventana con la vista de facturas.
     def nueva_factura():
         nonlocal index_factura, modo_consulta, f4_siguiente_abrir_ventana
 
@@ -512,8 +679,11 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         index_factura = -1
         modo_consulta = False
         limpiar_factura()
+        # Marcar que la próxima pulsación abrirá ventana nueva
         f4_siguiente_abrir_ventana = False
 
+    # Navega a la siguiente factura guardada (F6).
+    # Usa navegación circular: al llegar al final vuelve al principio.
     def siguiente_factura():
         nonlocal index_factura
         if not facturas:
@@ -522,6 +692,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         index_factura = (index_factura + 1) % len(facturas)
         cargar_factura(facturas[index_factura]['id_venta'])
 
+    # Navega a la factura anterior guardada (F7).
+    # Usa navegación circular: al llegar al inicio va al final.
     def anterior_factura():
         nonlocal index_factura
         if not facturas:
@@ -530,6 +702,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         index_factura = (index_factura - 1) % len(facturas)
         cargar_factura(facturas[index_factura]['id_venta'])
 
+    # Carga la lista completa de facturas desde la base de datos
+    # y muestra la primera de la lista.
     def cargar_lista_facturas():
         nonlocal facturas, index_factura
         facturas = ventas_controller.listar_facturas()
@@ -539,6 +713,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         else:
             limpiar_factura()
 
+    # Borra o anula la factura actual según el modo:
+    # - Modo nueva factura: simplemente limpia la tabla
+    # - Modo consulta: anula la factura (requiere permisos de admin/Aprendiz)
+    # Muestra un diálogo de confirmación antes de ejecutar la acción.
     def borrar_factura_actual():
         nonlocal index_factura
 
@@ -562,10 +740,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 pagina.update()
 
         # -----------------------------------
-        # MODO CONSULTA
+        # MODO CONSULTA - ANULAR FACTURA
         # -----------------------------------
         else:
-            # VALIDAR PERMISOS
+            # Los Aprendices no tienen permisos para anular facturas
             if usuario.get("rol", "") == "Aprendiz":
                 snack = ft.SnackBar(
                     content=ft.Text(
@@ -592,6 +770,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 if not confirmado:
                     return
 
+                # Anular la factura en la base de datos
                 if ventas_controller.borrar_factura(
                     id_factura_actual
                 ):
@@ -601,12 +780,13 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     )
                     pagina.overlay.append(snack)
                     snack.open = True
+                    # Recargar la lista de facturas después de anular
                     facturas.clear()
                     index_factura = -1
                     cargar_lista_facturas()
 
         # -----------------------------------
-        # DIALOGO GENERAL
+        # DIALOGO GENERAL DE CONFIRMACIÓN
         # -----------------------------------
         dialog = confirmar_view(
             pagina,
@@ -617,7 +797,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog.open = True
         pagina.update()
 
-    # Abro el dialogo para buscar productos con F3
+    # Abre el diálogo de búsqueda de productos (F3).
+    # Se pasa la función `agregar_producto_a_tabla` como callback
+    # para que cuando el usuario seleccione un producto se inserte en la tabla.
     def buscar_producto():
         if modo_consulta:
             return
@@ -626,7 +808,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog.open = True
         pagina.update()
 
-    # Muestro el cliente seleccionado en el campo de cliente
+    # Callback que se ejecuta cuando el usuario selecciona un cliente
+    # desde el diálogo de búsqueda. Actualiza el campo de cliente en pantalla.
     def seleccionar_cliente(cliente):
         nonlocal cliente_actual
         cliente_actual = cliente
@@ -636,7 +819,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
     
 
-    # Funcion pendiente para buscar cliente
+    # Abre el diálogo de búsqueda de clientes (F1).
+    # Se pasa la función `seleccionar_cliente` como callback
+    # para que al seleccionar un cliente se muestre en la interfaz.
     def buscar_cliente():
         if modo_consulta:
             return
@@ -645,6 +830,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog.open = True
         pagina.update()
 
+    # Abre el diálogo de creación rápida de productos o clientes (F8).
+    # Muestra un menú con opciones "CrearP" (producto) y "CrearU" (usuario).
     def crearP_C():
         def on_crear(opcion):
             if opcion == "CrearP":
@@ -660,52 +847,53 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ---------------- TECLADO ----------------
 
-    # Detecto las teclas rapidas de la pantalla de ventas
+    # Handler principal de atajos de teclado para toda la vista de ventas.
+    # Cada tecla de función tiene una acción asignada.
     async def teclado(e: ft.KeyboardEvent):
 
-        # F2 factura la venta
+        # F2 → Facturar la venta actual
         if e.key == "F2":
             facturar()
 
-        # Escape vuelve al menu
+        # Escape → Volver al menú principal del sistema
         elif e.key == "Escape":
             ir_a_menu(usuario)
 
-        # F3 abre el buscador de productos
+        # F3 → Abrir diálogo de búsqueda de productos
         elif e.key == "F3":
             buscar_producto()
 
-        # F1 busca o enfoca el cliente
+        # F1 → Abrir diálogo de búsqueda de clientes
         elif e.key == "F1":
             buscar_cliente()
 
-        # F4 crea una nueva factura
+        # F4 → Nueva factura (limpiar o abrir nueva ventana)
         elif e.key == "F4":
             nueva_factura()
 
-        # F5 borra la factura actual
+        # F5 → Borrar/Anular factura actual
         elif e.key == "F5":
             borrar_factura_actual()
 
-        # F6 siguiente factura guardada
+        # F6 → Navegar a la siguiente factura guardada
         elif e.key == "F6":
             siguiente_factura()
 
-        # F7 anterior factura guardada
+        # F7 → Navegar a la factura anterior guardada
         elif e.key == "F7":
             anterior_factura()
         
-        # F8 Crear producto o cliente
+        # F8 → Crear producto o cliente
         elif e.key == "F8":
             crearP_C()
 
 
     # ---------------- BOTONES ----------------
 
-    # Boton para volver al menu principal
+    # Botón para volver al menú principal del sistema (atajo: Escape)
     Volver_menu = ft.Button("Volver [Esc]", on_click=lambda _: ir_a_menu(usuario))
 
-    # Boton para abrir el buscador de productos con click
+    # Botón para abrir el diálogo de búsqueda de productos (atajo: F3)
     btn_buscar_producto = ft.Button(
         "Buscar producto [F3]",
         on_click=lambda _: buscar_producto(),
@@ -717,7 +905,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Boton para facturar la venta
+    # Botón para facturar la venta actual (atajo: F2).
+    # Color verde para indicar acción positiva/confirmación.
     btn_facturar = ft.Button(
         "Facturar [F2]",
         on_click=lambda _: facturar(),
@@ -731,6 +920,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    # Botón para abrir el diálogo de búsqueda de clientes (atajo: F1)
     btn_buscar_cliente = ft.Button(
         "Buscar Cliente [F1]",
         on_click=lambda _: buscar_cliente(),
@@ -742,6 +932,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
     
+    # Botón para abrir diálogo de creación de productos/clientes (atajo: F8)
     btn_registar_cliente = ft.Button(
         "Crear P/C [F8]",
         on_click=lambda _: crearP_C(),
@@ -753,7 +944,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Boton para crear nueva factura
+    # Botón para crear una nueva factura (atajo: F4).
+    # Primera pulsación: limpia. Segunda: abre nueva ventana.
     btn_nueva_factura = ft.Button(
         "Nueva Factura [F4]",
         on_click=lambda _: nueva_factura(),
@@ -765,7 +957,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Boton para consultar facturas guardadas
+    # Botón para cargar y consultar facturas guardadas (atajos: F6/F7)
     btn_consultar = ft.Button(
         "Consultar [F6/F7]",
         on_click=lambda _: cargar_lista_facturas(),
@@ -777,6 +969,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
+    # Botón para imprimir la factura consultada.
+    # Solo visible cuando hay una factura cargada en modo consulta.
+    # Color azul para diferenciarlo de las acciones principales.
     btn_imprimir_consulta = ft.Button(
         "Imprimir consulta",
         on_click=lambda _: imprimir_factura_consultada(),
@@ -791,7 +986,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Boton para borrar factura
+    # Botón para borrar la factura actual o anular una consultada (atajo: F5).
+    # Color rojo para indicar acción destructiva.
     btn_borrarFactura = ft.Button(
         "Borrar [F5]",
         on_click=lambda _: borrar_factura_actual(),
@@ -807,7 +1003,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ---------------- TABLA PRODUCTOS ----------------
 
-    # Tabla donde se muestran los productos agregados a la venta
+    # Tabla principal donde se muestran los productos agregados a la venta.
+    # Columnas: Codigo, Producto, Cantidad (editable), Unidad, Precio unitario,
+    #           Descuento (editable), Subtotal, Empresa, Acciones (botón X).
+    # La cantidad y el descuento se editan haciendo clic en la celda.
     tabla_productos = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Codigo")),
@@ -829,7 +1028,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ---------------- PANELES ----------------
 
-    # Panel izquierdo con los datos de la venta y la tabla de productos
+    # Panel izquierdo: contiene el encabezado, los botones de acción,
+    # el campo del cliente y la tabla de productos con scroll automático.
+    # Ocupa todo el espacio disponible (expand=True).
     panel_izquierdo = ft.Container(
         expand=True,
         bgcolor=ft.Colors.WHITE,
@@ -838,7 +1039,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         padding=20,
         content=ft.Column(
             [
-                # Encabezado
+                # Encabezado: título "Nueva venta" a la izquierda,
+                # número de factura a la derecha
                 ft.Row(
                     [
                         ft.Text(
@@ -851,7 +1053,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
 
-                # Botones
+                # Fila de botones principales: nueva factura, buscar producto,
+                # buscar cliente, crear producto/cliente
                 ft.Row(
                     [
                         btn_nueva_factura,
@@ -862,7 +1065,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     spacing=5
                 ),
                 ft.Divider(),
-                # Cliente
+                # Fila con el título "Productos agregados" y el campo de cliente
                 ft.Row(
                     [
                         ft.Text(
@@ -875,7 +1078,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     spacing=20,
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
-                # TABLA CON SCROLL
+                # Contenedor de la tabla con scroll automático vertical y horizontal
                 ft.Container(
                     expand=True,
                     border_radius=10,
@@ -898,7 +1101,9 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Panel derecho con el resumen de la venta
+    # Panel derecho: muestra el resumen de la venta (subtotal, descuento, total),
+    # información de la factura consultada, y los botones de acción secundarios
+    # (facturar, consultar, imprimir, borrar). Ancho fijo de 230px.
     panel_derecho = ft.Container(
         width=230,
         bgcolor=ft.Colors.WHITE,
@@ -907,8 +1112,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         padding=20,
         content=ft.Column(
             [
+                # Título del resumen
                 ft.Text("Resumen de venta", weight="bold", size=17),
 
+                # Totales calculados dinámicamente
                 subtotal,
                 descuento,
 
@@ -918,29 +1125,34 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
                 ft.Divider(),
 
+                # Campos visibles solo en modo consulta
                 texto_fecha,
                 usuarioFactura,
                 notaFactura,
 
 
+                # Botón de facturar (centrado)
                 ft.Row(
                     btn_facturar,
                     spacing=10,
                     alignment=ft.MainAxisAlignment.CENTER,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER
                 ),
+                # Botón de consultar facturas guardadas
                 ft.Row(
                     btn_consultar,
                     spacing=10,
                     alignment=ft.MainAxisAlignment.CENTER,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER
                 ),
+                # Botón de imprimir (oculto por defecto)
                 ft.Row(
                     btn_imprimir_consulta,
                     spacing=10,
                     alignment=ft.MainAxisAlignment.CENTER,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER
                 ),
+                # Botón de borrar/anular (rojo)
                 ft.Row(
                     btn_borrarFactura,
                     spacing=10,
@@ -954,11 +1166,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # ---------------- LAYOUT ----------------
 
-    # Agrego toda la interfaz a la pagina
+    # Layout principal: estructura vertical con barra superior y cuerpo dividido
+    # en panel izquierdo (tabla) y panel derecho (resumen + acciones).
     pagina.add(
         ft.Column(
             [
-                # Barra superior con logo, titulo, hora y boton volver
+                # Barra superior: logo, título, usuario, nombre, reloj y botón volver
                 ft.Container(
                     bgcolor=ft.Colors.WHITE,
                     border=ft.Border.all(1, ft.Colors.BLACK),
@@ -1002,14 +1215,15 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
     )
 
-    # Activo los atajos de teclado de esta vista
+    # Registrar el handler de atajos de teclado en la página
     pagina.on_keyboard_event = teclado
 
-    # Refresco la pantalla
+    # Refresco la pantalla para mostrar todos los elementos
     pagina.update()
 
-    # Cargo la lista de facturas para poder navegar con F6/F7
+    # Cargar la lista de facturas para poder navegar con F6/F7
+    # (muestra la primera factura si existe)
     cargar_lista_facturas()
 
-    # Inicio la tarea que actualiza la hora
+    # Iniciar la tarea asíncrona que actualiza el reloj cada segundo
     pagina.run_task(actualizar_hora)

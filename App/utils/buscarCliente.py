@@ -4,11 +4,42 @@ import flet as ft
 from models.ventasModel import buscar_cliente, actualizar_cliente
 from utils.notificaciones import mostrar_notificacion
 
-# Utilidad para buscar y seleccionar clientes desde una ventana emergente.
+# ============================================================================
+# MÓDULO DE BÚSQUEDA Y SELECCIÓN DE CLIENTES
+# ============================================================================
+# Diálogo modal que permite buscar clientes en la base de datos por nombre
+# o cédula, seleccionar uno, y opcionalmente editarlo antes de asignarlo
+# a una venta.
+#
+# Flujo del diálogo (máquina de estados):
+#   1. "buscar"     → El usuario escribe nombre o cédula y presiona Enter.
+#   2. "resultados" → Se muestran los clientes encontrados como botones.
+#   3. "opciones"   → Selecciona un cliente y elige entre "Usar sin editar" o "Editar".
+#   4. "edicion"    → Si eligió editar, muestra un formulario con los campos del cliente.
+#
+# Similar a buscarProducto.py pero simplificado: no tiene fase de cantidad
+# ya que un cliente no necesita cantidades.
+#
+# Dependencias:
+#   - models.ventasModel: funciones buscar_cliente() y actualizar_cliente().
+#   - utils.notificaciones: para mostrar confirmaciones de edición.
+# ============================================================================
 
 
 # Vista secundaria que abre el dialogo para buscar y seleccionar clientes
 def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
+    """
+    Crea el diálogo de búsqueda de clientes.
+
+    Parámetros:
+        pagina (ft.Page): Página de Flet donde se mostrará el diálogo.
+        mostrar_cliente_seleccionado (callable): Función callback que recibe
+            un diccionario con los datos del cliente seleccionado para
+            actualizar el campo de cliente en vender.py.
+
+    Retorna:
+        ft.AlertDialog: Componente de diálogo listo para mostrarse en vender.py.
+    """
 
     # ---------------- ESTADO ----------------
 
@@ -66,7 +97,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
     # Texto para mostrar mensajes de ayuda o errores
     mensaje = ft.Text("", size=12, color="red")
 
-    # Campos editables para los datos del cliente
+    # ---- Campos editables para los datos del cliente ----
     campo_nombre = ft.TextField(label="Nombre", width=340)
     campo_documento = ft.TextField(label="Documento", width=340)
     campo_rol = ft.TextField(label="Rol/Cargo", width=340)
@@ -102,7 +133,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         spacing=6
     )
 
-    # Botones para confirmar o editar
+    # ---- Botón de confirmar edición ----
     btn_confirmar_edicion = ft.Button(
         "Confirmar ✓",
         width=230,
@@ -130,6 +161,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         on_click=lambda _: confirmar_cliente_editado()
     )
 
+    # ---- Botón de cancelar edición ----
     btn_cancelar_edicion = ft.Button(
         "Cancelar ✗",
         width=180,
@@ -157,6 +189,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         on_click=lambda _: volver_a_resultados()
     )
 
+    # ---- Botón de usar sin editar ----
     btn_usar_sin_editar = ft.Button(
         "Usar sin editar ✓",
         width=230,
@@ -188,6 +221,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         on_click=lambda _: usar_cliente_sin_editar()
     )
 
+    # Fila de botones de edición (confirmar y cancelar)
     botones_edicion = ft.Row(
         [btn_confirmar_edicion, btn_cancelar_edicion],
         visible=False,
@@ -195,6 +229,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         alignment=ft.MainAxisAlignment.CENTER
     )
 
+    # Fila de botones de opciones (usar sin editar y editar)
     botones_opciones = ft.Row(
         [
             btn_usar_sin_editar,
@@ -232,8 +267,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
     # -------- FUNCIONES --------
 
-    # Limpio los resultados cuando el usuario cambia la busqueda
     def limpiar_resultados():
+        """
+        Reinicia el estado del diálogo a la fase de búsqueda.
+        Limpia la lista de resultados y oculta paneles secundarios.
+        """
         nonlocal clientes_encontrados, index_seleccionado, fase, botones_clientes
 
         # Reinicio datos de busqueda
@@ -256,16 +294,22 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
         pagina.update()
 
-    # Coloco el foco en un boton de cliente
     async def enfocar_cliente(posicion=0):
+        """
+        Coloca el foco en un botón de cliente específico.
+        Captura RuntimeError por si el diálogo se cierra mientras se espera.
+        """
         if botones_clientes and 0 <= posicion < len(botones_clientes):
             try:
                 await botones_clientes[posicion].focus()
             except RuntimeError:
                 return
 
-    # Marco como seleccionado el cliente que recibe foco o hover
     def marcar_cliente(posicion):
+        """
+        Marca un cliente como seleccionado sin redibujar la lista.
+        Evita invalidar las referencias de foco al mantener flechas pulsadas.
+        """
         nonlocal index_seleccionado
 
         # Solo marco clientes en la fase de resultados
@@ -277,14 +321,17 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         if index_seleccionado != posicion:
             index_seleccionado = posicion
 
-    # Cuando el mouse pasa por un cliente lo marco y lo enfoco
     def hover_cliente(e, posicion):
+        """Marca y enfoca un cliente cuando el mouse pasa por encima."""
         if e.data == "true":
             marcar_cliente(posicion)
             pagina.run_task(enfocar_cliente, posicion)
 
-    # Muevo el foco entre clientes con flecha arriba y flecha abajo
     def mover_foco_cliente(nuevo_index):
+        """
+        Mueve la selección entre clientes con las flechas del teclado.
+        Redibuja la lista para resaltar el cliente seleccionado.
+        """
         nonlocal index_seleccionado
 
         # Si no hay clientes no hago nada
@@ -298,8 +345,12 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         renderizar_resultados()
         pagina.run_task(enfocar_cliente, index_seleccionado)
 
-    # Pinto los clientes encontrados como botones
     def renderizar_resultados():
+        """
+        Dibuja los clientes encontrados como botones dentro del contenedor
+        de resultados. Cada botón muestra: número de posición, nombre y
+        número de documento.
+        """
         nonlocal botones_clientes
 
         # Limpio botones anteriores
@@ -317,7 +368,7 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         # Creo un boton por cada cliente encontrado
         for i, cliente in enumerate(clientes_encontrados):
 
-            # Boton del cliente
+            # Boton del cliente con layout: [número] nombre  documento
             btn = ft.Button(
                 content=ft.Row([
                     ft.Text(f"[{i + 1}]", size=12, width=30),
@@ -368,8 +419,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
         pagina.update()
 
-    # Busco clientes en la base de datos segun el texto escrito
     def actualizar_resultados():
+        """
+        Ejecuta la búsqueda de clientes en la base de datos.
+        Actualiza la lista de resultados y cambia la fase del diálogo.
+        """
         nonlocal clientes_encontrados, index_seleccionado, fase, botones_clientes
 
         # Tomo el texto escrito por el usuario
@@ -409,8 +463,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             mensaje.value = f"Error en busqueda: {str(err)}"
             pagina.update()
 
-    # Selecciono un cliente y lo envio a la vista de venta
     def seleccionar_cliente(posicion=None):
+        """
+        Selecciona un cliente de la lista y pasa a la fase de opciones.
+        Valida que no se haya confirmado ya un cliente previamente.
+        """
         nonlocal cliente_seleccionado, index_seleccionado, cliente_confirmado, fase, cliente_datos_editables
 
         # Si llega una posicion por click la uso como seleccion actual
@@ -432,8 +489,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         # Muestro las opciones de editar o no editar
         mostrar_opciones_edicion()
 
-    # Muestro el formulario con los datos del cliente
     def mostrar_formulario_edicion():
+        """
+        Muestra el formulario editable con los datos del cliente.
+        Carga los valores actuales en los campos y enfoca el primero.
+        """
         nonlocal fase
 
         # Cambio a fase de edición
@@ -462,8 +522,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         # Enfoco el primer campo
         pagina.run_task(enfocar, campo_nombre)
 
-    # Enfoco un campo de texto de forma segura
     async def enfocar(campo: ft.TextField):
+        """
+        Coloca el foco en un campo de texto con reintentos.
+        Usa pequeños delays para esperar a que el campo esté listo.
+        """
         for intento in range(2):
             try:
                 await asyncio.sleep(0.01)
@@ -473,8 +536,12 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
                 if intento == 0:
                     await asyncio.sleep(0.1)
 
-    # Confirmo el cliente editado y lo envío a la vista principal
     def confirmar_cliente_editado():
+        """
+        Valida y guarda los cambios editados del cliente en la base de datos.
+        Si todo está correcto, envía el cliente a la vista principal
+        y cierra el diálogo.
+        """
         nonlocal cliente_confirmado
 
         # Actualizo los datos con los valores editados
@@ -498,8 +565,8 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             mensaje.value = f"Error al guardar: {str(err)}"
             pagina.update()
 
-    # Vuelvo a los resultados sin confirmar
     def volver_a_resultados():
+        """Regresa a la lista de resultados desde las opciones o edición."""
         nonlocal fase
 
         # Cambio a fase de resultados
@@ -520,8 +587,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         # Enfoco el cliente seleccionado
         pagina.run_task(enfocar_cliente, index_seleccionado)
 
-    # Muestro las opciones de editar o no editar
     def mostrar_opciones_edicion():
+        """
+        Muestra los datos del cliente seleccionado en un panel de solo
+        lectura, con los botones "Usar sin editar" y "Editar →".
+        """
         nonlocal fase
 
         # Cambio a fase de opciones
@@ -545,8 +615,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
         pagina.update()
 
-    # Uso el cliente sin editar sus datos
     def usar_cliente_sin_editar():
+        """
+        Envía el cliente seleccionado directamente a la vista principal
+        sin pasar por la edición. Cierra el diálogo inmediatamente.
+        """
         nonlocal cliente_confirmado
 
         try:
@@ -557,8 +630,11 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
             mensaje.value = f"Error: {str(err)}"
             pagina.update()
 
-    # Cierro el dialogo y restauro el teclado anterior
     def cerrar_dialogo():
+        """
+        Cierra el diálogo y restaura el handler de teclado anterior.
+        Usa una bandera para evitar que se cierre más de una vez.
+        """
         nonlocal dialogo_cerrado
 
         # Evito cerrar dos veces
@@ -574,13 +650,18 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
 
         pagina.update()
 
-    # Cancelo el dialogo
     def cancelar(e=None):
+        """Cierra el diálogo sin seleccionar ningún cliente."""
         cerrar_dialogo()
 
-    # Manejo el teclado mientras el dialogo esta abierto
     async def teclado(e: ft.KeyboardEvent):
+        """
+        Handler de teclado del diálogo.
 
+        - Escape: cierra el diálogo.
+        - En fase "resultados", no se procesan teclas especiales para
+          evitar desestabilizar el diálogo.
+        """
         # Escape cierra el dialogo
         if e.key == "Escape":
             cancelar()
@@ -590,8 +671,8 @@ def buscar_cliente_view(pagina: ft.Page, mostrar_cliente_seleccionado):
         if fase == "resultados":
             return
 
-    # Teclado temporal de la pagina mientras el dialogo esta abierto
     async def teclado_pagina(e: ft.KeyboardEvent):
+        """Wrapper del handler de teclado para la página."""
         await teclado(e)
 
     # -------- DIALOG --------

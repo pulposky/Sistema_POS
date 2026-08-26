@@ -2,12 +2,48 @@ import flet as ft
 from models.ventasModel import buscar_producto, actualizar_producto
 from utils.notificaciones import mostrar_notificacion
 
-# Utilidad para buscar productos desde una ventana emergente dentro de la app.
+# ============================================================================
+# MÓDULO DE BÚSQUEDA Y SELECCIÓN DE PRODUCTOS
+# ============================================================================
+# Diálogo modal que permite buscar productos en la base de datos por nombre,
+# seleccionar uno, opcionalmente editarlo antes de usar, y especificar la
+# cantidad a vender.
+#
+# Flujo del diálogo (máquina de estados):
+#   1. "buscar"     → El usuario escribe en el campo de búsqueda y presiona Enter.
+#   2. "resultados" → Se muestran los productos encontrados como botones.
+#   3. "opciones"   → Selecciona un producto y elige entre "Usar sin editar" o "Editar".
+#   4. "edicion"    → Si eligió editar, muestra un formulario con los campos del producto.
+#   5. "cantidad"   → Se ingresa la cantidad del producto a vender.
+#
+# Este diálogo reemplaza temporalmente el handler de teclado de la vista
+# principal (vender.py) para manejar Escape, Enter y flechas.
+#
+# Dependencias:
+#   - models.ventasModel: funciones buscar_producto() y actualizar_producto().
+#   - utils.notificaciones: para mostrar confirmaciones de edición.
+# ============================================================================
+
 
 # =========================================================
 # VISTA PARA BUSCAR Y SELECCIONAR PRODUCTOS
 # =========================================================
 def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_precio=True):
+    """
+    Crea el diálogo de búsqueda de productos.
+
+    Parámetros:
+        pagina (ft.Page): Página de Flet donde se mostrará el diálogo.
+        agregar_producto_a_tabla (callable): Función callback que recibe
+            un diccionario con los datos del producto seleccionado y la
+            cantidad, para agregarlo a la tabla de venta en vender.py.
+        mostrar_precio (bool): Si True, muestra el precio en los resultados
+            y en los detalles del producto. Si False, solo muestra unidad
+            (usado en vistas donde no se necesitan precios).
+
+    Retorna:
+        ft.AlertDialog: Componente de diálogo listo para mostrarse en vender.py.
+    """
 
     # ---------------- ESTADO ----------------
 
@@ -77,12 +113,14 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
     # Texto para mostrar mensajes de ayuda o errores
     mensaje = ft.Text("", size=12, color="red")
 
+    # ---- Campos del formulario de edición de producto ----
     campo_nombre = ft.TextField(label="Nombre", width=340)
     campo_unidad = ft.TextField(label="Unidad", width=340)
     campo_lugar = ft.TextField(label="Empresa/Lugar", width=340)
     campo_precio = ft.TextField(label="Precio", width=340)
     campo_stock = ft.TextField(label="Stock", width=340)
     campo_descripcion = ft.TextField(label="Descripción", width=340, multiline=True, min_lines=2, max_lines=4)
+    # Lista de categorías disponibles para los productos
     categoria_options = [
         "Abonos y Sustratos",
         "Frutas y Hortalizas",
@@ -101,21 +139,24 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         options=[ft.dropdown.Option(item) for item in categoria_options],
     )
 
+    # Panel de solo lectura que muestra los datos del producto seleccionado
+    # antes de decidir si se usa o se edita
     info_producto = ft.Column(
         [
             ft.Text("Datos del producto seleccionado", size=14, weight="bold"),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
-            ft.Text("", size=13),
+            ft.Text("", size=13),  # nombre
+            ft.Text("", size=13),  # unidad
+            ft.Text("", size=13),  # empresa/lugar
+            ft.Text("", size=13),  # precio
+            ft.Text("", size=13),  # stock
+            ft.Text("", size=13),  # descripción
+            ft.Text("", size=13),  # categoría
         ],
         visible=False,
         spacing=6,
     )
 
+    # Formulario editable con los campos del producto para modificar antes de usar
     form_edicion = ft.Column(
         [
             ft.Text("Verificar y editar datos del producto", size=13, weight="bold"),
@@ -125,6 +166,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         spacing=10,
     )
 
+    # Botones de opciones: "Usar sin editar" o "Editar →"
     botones_opciones = ft.Row(
         [
             ft.Button(
@@ -176,6 +218,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         ], visible=False, spacing=10, alignment=ft.MainAxisAlignment.CENTER,
     )
 
+    # Botones de edición: "Confirmar ✓" o "Cancelar ✗"
     botones_edicion = ft.Row(
         [
             ft.Button("Confirmar ✓", width=230, bgcolor=ft.Colors.GREEN,
@@ -223,8 +266,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
     # -------- FUNCIONES --------
 
-    # Limpio los resultados cuando el usuario cambia la busqueda
     def limpiar_resultados():
+        """
+        Reinicia el estado del diálogo a la fase de búsqueda.
+        Limpia la lista de resultados, oculta paneles secundarios
+        y restaura el campo de búsqueda.
+        """
         nonlocal productos_encontrados, index_seleccionado, fase, botones_resultado
 
         # Reinicio datos de busqueda
@@ -248,8 +295,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         mensaje.value = "Presiona Enter para buscar"
         pagina.update()
 
-    # Coloco el foco en un boton de producto
     async def enfocar_producto(posicion=0):
+        """
+        Coloca el foco en un botón de producto específico.
+        Se ejecuta de forma asíncrona porque el foco puede fallar
+        si el diálogo se cerró mientras se esperaba.
+        """
         if botones_resultado and 0 <= posicion < len(botones_resultado):
             try:
                 await botones_resultado[posicion].focus()
@@ -258,8 +309,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
                 # foco. No hay nada que actualizar en ese caso.
                 return
 
-    # Marco como seleccionado el producto que recibe foco o hover
     def marcar_producto(posicion):
+        """
+        Marca un producto como seleccionado sin redibujar la lista.
+        Esto evita invalidar las referencias de foco cuando se mantiene
+        pulsada una flecha.
+        """
         nonlocal index_seleccionado
 
         # Solo marco productos en la fase de resultados
@@ -272,14 +327,17 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         if index_seleccionado != posicion:
             index_seleccionado = posicion
 
-    # Cuando el mouse pasa por un producto lo marco y lo enfoco
     def hover_producto(e, posicion):
+        """Marca y enfoca un producto cuando el mouse pasa por encima."""
         if e.data == "true":
             marcar_producto(posicion)
             pagina.run_task(enfocar_producto, posicion)
 
-    # Muevo el foco entre productos con flecha arriba y flecha abajo
     def mover_foco_producto(nuevo_index):
+        """
+        Mueve la selección entre productos con las flechas del teclado.
+        Redibuja la lista para resaltar el producto seleccionado.
+        """
         nonlocal index_seleccionado
 
         # Si no hay productos no hago nada
@@ -293,8 +351,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         renderizar_resultados()
         pagina.run_task(enfocar_producto, index_seleccionado)
 
-    # Pinto los productos encontrados como botones
     def renderizar_resultados():
+        """
+        Dibuja los productos encontrados como botones dentro del contenedor
+        de resultados. Cada botón muestra: número de posición, nombre y
+        precio/unidad.
+        """
         nonlocal botones_resultado
 
         # Limpio botones anteriores
@@ -313,13 +375,14 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         for i, prod in enumerate(productos_encontrados):
 
             unidad = prod.get('unidad', 'UND')
+            # Muestro precio o solo unidad según la configuración
             detalle_producto = (
                 f"${prod.get('precio', 0)} / {unidad}"
                 if mostrar_precio
                 else str(unidad)
             )
 
-            # Boton del producto
+            # Boton del producto con layout: [número] nombre  precio/unidad
             btn = ft.Button(
                 content=ft.Row([
                     ft.Text(f"[{i + 1}]", size=12, width=30),
@@ -370,8 +433,12 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
         pagina.update()
 
-    # Busco productos en la base de datos segun el texto escrito
     def actualizar_resultados():
+        """
+        Ejecuta la búsqueda en la base de datos según el texto escrito
+        por el usuario. Actualiza la lista de resultados y cambia la
+        fase del diálogo.
+        """
         nonlocal productos_encontrados, index_seleccionado, fase, botones_resultado
 
         # Tomo el texto escrito por el usuario
@@ -411,8 +478,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             mensaje.value = f"Error en busqueda: {str(err)}"
             pagina.update()
 
-    # Selecciono un producto y muestro sus opciones
     def seleccionar_producto(posicion=None):
+        """
+        Selecciona un producto de la lista y pasa a la fase de opciones
+        donde el usuario puede elegir usarlo sin editar o editarlo.
+        """
         nonlocal producto_seleccionado, producto_datos_editables, fase, index_seleccionado
 
         # Si llega una posicion por click la uso como seleccion actual
@@ -430,9 +500,14 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         mostrar_opciones_edicion()
 
     def mostrar_opciones_edicion():
+        """
+        Muestra los datos del producto seleccionado en un panel de solo
+        lectura, con los botones "Usar sin editar" y "Editar →".
+        """
         nonlocal fase
 
         fase = "opciones"
+        # Cargo los datos del producto en el panel informativo
         info_producto.controls[1].value = f"Nombre: {producto_datos_editables.get('nombre', '')}"
         info_producto.controls[2].value = f"Unidad: {producto_datos_editables.get('unidad', '')}"
         info_producto.controls[3].value = f"Empresa/Lugar: {producto_datos_editables.get('lugar', '')}"
@@ -441,6 +516,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         info_producto.controls[6].value = f"Descripción: {producto_datos_editables.get('descripcion', '') or 'Sin descripción'}"
         info_producto.controls[7].value = f"Categoría: {producto_datos_editables.get('categoria', 'Abonos y Sustratos')}"
 
+        # Oculto la búsqueda y muestro la info del producto
         campo_busqueda.visible = False
         resultados_container.visible = False
         mensaje.value = ""
@@ -449,9 +525,14 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         pagina.update()
 
     def mostrar_formulario_edicion():
+        """
+        Muestra el formulario editable con los datos del producto,
+        permitiendo al usuario modificar cualquier campo antes de usarlo.
+        """
         nonlocal fase
 
         fase = "edicion"
+        # Cargo los datos actuales en los campos editables
         campo_nombre.value = producto_datos_editables.get('nombre', '')
         campo_unidad.value = producto_datos_editables.get('unidad', '')
         campo_lugar.value = producto_datos_editables.get('lugar', '')
@@ -460,19 +541,27 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         campo_descripcion.value = producto_datos_editables.get('descripcion', '')
         campo_categoria.value = producto_datos_editables.get('categoria', 'Abonos y Sustratos')
 
+        # Oculto panel informativo y opciones, muestro formulario
         info_producto.visible = False
         botones_opciones.visible = False
         form_edicion.visible = True
         botones_edicion.visible = True
         pagina.update()
+        # Enfoco el primer campo del formulario
         pagina.run_task(enfocar_campo, campo_nombre)
 
     async def enfocar_campo(campo):
+        """Coloca el foco en un campo de texto de forma asíncrona."""
         await campo.focus()
 
     def confirmar_producto_editado():
+        """
+        Valida y guarda los cambios editados del producto en la base de datos.
+        Si todo está correcto, muestra notificación y pasa a la fase de cantidad.
+        """
         nonlocal producto_seleccionado
         try:
+            # Leo los valores de los campos y los guardo en el diccionario
             producto_datos_editables['nombre'] = campo_nombre.value.strip()
             producto_datos_editables['unidad'] = campo_unidad.value.strip()
             producto_datos_editables['lugar'] = campo_lugar.value.strip()
@@ -481,9 +570,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             producto_datos_editables['descripcion'] = campo_descripcion.value.strip()
             producto_datos_editables['categoria'] = campo_categoria.value.strip() if campo_categoria.value else 'Abonos y Sustratos'
 
+            # Valido campos obligatorios
             if not producto_datos_editables['nombre'] or not producto_datos_editables['unidad']:
                 raise ValueError("Nombre y unidad son obligatorios")
 
+            # Guardo los cambios en la base de datos
             actualizar_producto(producto_datos_editables)
             producto_seleccionado = producto_datos_editables.copy()
             mostrar_notificacion(pagina, "Producto actualizado correctamente.")
@@ -493,9 +584,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             pagina.update()
 
     def usar_producto_sin_editar():
+        """Salta directamente a la fase de cantidad sin editar el producto."""
         mostrar_cantidad()
 
     def volver_a_resultados():
+        """Regresa a la lista de resultados de búsqueda desde las opciones o edición."""
         nonlocal fase
         fase = "resultados"
         form_edicion.visible = False
@@ -508,6 +601,10 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         pagina.run_task(enfocar_producto, index_seleccionado)
 
     def mostrar_cantidad():
+        """
+        Muestra el campo para ingresar la cantidad del producto.
+        Oculta todos los demás paneles y enfoca el campo de cantidad.
+        """
         nonlocal fase
 
         # Oculto busqueda y resultados
@@ -518,7 +615,7 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         form_edicion.visible = False
         botones_edicion.visible = False
 
-        # Muestro el campo para cantidad
+        # Muestro el campo para cantidad, ajustando la etiqueta con la unidad
         unidad = producto_seleccionado.get('unidad', 'UND')
         campo_cantidad.label = f"Cantidad en {unidad}"
         campo_cantidad.visible = True
@@ -529,12 +626,15 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         pagina.run_task(enfocar_cantidad)
         pagina.update()
 
-    # Coloco el foco en el campo de cantidad
     async def enfocar_cantidad():
+        """Coloca el foco en el campo de cantidad de forma asíncrona."""
         await campo_cantidad.focus()
 
-    # Confirmo la cantidad y envio el producto a vender.py
     def confirmar_cantidad():
+        """
+        Procesa la cantidad ingresada, calcula el subtotal y envía
+        el producto completo a la tabla de vender.py. Luego cierra el diálogo.
+        """
         nonlocal producto_seleccionado, fase, producto_confirmado
 
         # Si ya se confirmo, no dejo agregar otra vez
@@ -569,8 +669,11 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
             mensaje.value = "Ingresa un numero valido"
             pagina.update()
 
-    # Cierro el dialogo y restauro el teclado anterior
     def cerrar_dialogo():
+        """
+        Cierra el diálogo y restaura el handler de teclado de la vista anterior.
+        Usa una bandera para evitar que se cierre más de una vez.
+        """
         nonlocal dialogo_cerrado
 
         # Evito cerrar dos veces
@@ -586,13 +689,19 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
 
         pagina.update()
 
-    # Cancelo el dialogo
     def cancelar(e=None):
+        """Cierra el diálogo sin seleccionar ningún producto."""
         cerrar_dialogo()
 
-    # Manejo el teclado mientras el dialogo esta abierto
     async def teclado(e: ft.KeyboardEvent):
+        """
+        Handler de teclado del diálogo.
 
+        - Escape: cierra el diálogo.
+        - En fase "resultados", las flechas no están habilitadas para evitar
+          desestabilizar el diálogo al redibujar con muchas coincidencias.
+          Los productos se seleccionan directamente con clic.
+        """
         # Escape cierra el dialogo
         if e.key == "Escape":
             cancelar()
@@ -604,8 +713,8 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         if fase == "resultados":
             return
 
-    # Teclado temporal de la pagina mientras el dialogo esta abierto
     async def teclado_pagina(e: ft.KeyboardEvent):
+        """Wrapper del handler de teclado para la página."""
         await teclado(e)
 
     # -------- DIALOG --------
