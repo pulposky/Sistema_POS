@@ -1,12 +1,30 @@
 
-# 🛒 Sistema POS y Gestión de Inventario
+# 🖥️ Sistema POS y Gestión de Inventario
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Flet](https://img.shields.io/badge/GUI-Flet-violet.svg)](https://flet.dev/)
 [![MySQL](https://img.shields.io/badge/Database-MySQL-orange.svg)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Sistema integral de Punto de Venta (POS), gestión de compras, emisión de remisiones y control de inventario en tiempo real desarrollado en Python con Flet y MySQL.
+Sistema integral de Punto de Venta (POS), gestión de compras, emisión de remisiones y control de inventario en tiempo real desarrollado en Python con Flet y MySQL. Vinculado con el **[Marketplace Web](https://github.com/pulposky/Marketplace)** para reservas en línea de productos.
+
+---
+
+## 📑 Tabla de Contenidos
+
+- [🚀 Guía de Instalación y Configuración](#-guía-de-instalación-y-configuración)
+  - [📋 Requisitos Previos](#-requisitos-previos)
+  - [1️⃣ Clonar el Repositorio](#1️⃣-clonar-el-repositorio)
+  - [2️⃣ Configurar la Base de Datos](#2️⃣-configurar-la-base-de-datos)
+  - [3️⃣ Crear el Entorno Virtual e Instalar Dependencias](#3️⃣-crear-el-entorno-virtual-e-instalar-dependencias)
+  - [4️⃣ Ejecutar la Aplicación](#4️⃣-ejecutar-la-aplicación)
+- [📦 Generar el Ejecutable (.exe)](#-generar-el-ejecutable-exe)
+- [🛠️ Solución de Problemas Frecuentes (FAQ)](#️-solución-de-problemas-frecuentes-faq)
+- [🌐 Marketplace Web Vinculado](#-marketplace-web-vinculado)
+  - [Reparto de tablas compartidas](#reparto-de-tablas-compartidas)
+  - [Instalación conjunta](#instalación-conjunta)
+- [📁 Estructura del Proyecto](#-estructura-del-proyecto)
+- [👥 Contribuciones y Soporte](#-contribuciones-y-soporte)
 
 ---
 
@@ -125,6 +143,35 @@ pyinstaller main.spec
 | `Error de conexión a la base de datos`       | El servicio MySQL está apagado o las credenciales no coinciden            | Asegúrate de que MySQL en Laragon/XAMPP esté iniciado y revisa el archivo`App/database/bd.py`.                               |
 | `Script Execution Disabled` (PowerShell)      | Política de ejecución restringida en Windows                             | Ejecuta en PowerShell:`Set-ExecutionPolicy Unrestricted -Scope Process` y luego reactiva con `.\.venv\Scripts\Activate.ps1`. |
 | `ModuleNotFoundError: No module named 'flet'` | El entorno virtual no está activado o no se instalaron los requerimientos | Activa el entorno virtual (`.\.venv\Scripts\Activate.ps1`) y vuelve a correr `pip install -r App/requirements.txt`.          |
+
+---
+
+## 🌐 Marketplace Web Vinculado
+
+Este POS se conecta con el **Marketplace Web** ([github.com/pulposky/Marketplace](https://github.com/pulposky/Marketplace)), una plataforma de reserva en línea de productos agrícolas y procesados desarrollada en **Node.js** con **Express**, **EJS** y **MySQL**.
+
+| POS 🖥️ (este sistema)                            | Marketplace 🌐 (Node.js)                              |
+| :------------------------------------------------ | :---------------------------------------------------- |
+| Pago presencial y facturación                     | Reserva en línea de productos                         |
+| Gestión de inventario, compras y remisiones       | Catálogo público con búsqueda y filtros               |
+| Código de barras / QR                             | Sistema de apartados con notificaciones               |
+| Registro de ventas y control de caja              | Dashboard de estadísticas y registro de visitas       |
+
+> Ambos sistemas comparten la misma base de datos MySQL (`sena_pdv`), lo que permite sincronizar inventario y clientes entre el canal en línea y las transacciones presenciales.
+
+### Reparto de tablas compartidas
+
+| Tabla        | Uso en el POS                  | Uso en el Marketplace              |
+| :----------- | :----------------------------- | :--------------------------------- |
+| `usuarios` | Login de cajeros              | Login de admin y empleados         |
+| `clientes` | Consumidor final en ventas    | Registro de clientes que reservan  |
+| `producto` | Inventario físico (`stock`)   | Stock en línea (`limite_venta`)    |
+
+### Instalación conjunta
+
+1. Ejecuta el `database.sql` de este POS para crear todas las tablas.
+2. Clona el Marketplace y ejecuta su `schema.sql` — no borra nada (`CREATE TABLE IF NOT EXISTS`).
+3. Si la web se instaló primero, ejecuta el bloque de `ALTER TABLE` incluido al final del `database.sql` de este POS para agregar la columna `limite_venta` y las tablas de la web.
 
 ---
 
