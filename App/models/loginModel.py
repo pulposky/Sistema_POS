@@ -52,13 +52,9 @@ def iniciar_sesion(usuario, password):
     # fetchone() retorna solo la primera fila encontrada o None si no hay
     # coincidencias. Se usa fetchone() porque solo puede existir un usuario
     # con ese nombre y contraseña
-    resultado = cursor.close()
+    resultado = cursor.fetchone()
 
-    # Cierro conexión
-    # Es importante cerrar tanto el cursor como la conexión para liberar
-    # los recursos del servidor de base de datos
     cursor.close()
-
     conexion.close()
 
     # Retorno el usuario encontrado
