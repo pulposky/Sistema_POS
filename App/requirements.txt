@@ -7,3 +7,4 @@ pywin32==312
 python-barcode==0.16.1
 qrcode==8.2
 Pillow==12.2.0
+python-dotenv==1.1.0

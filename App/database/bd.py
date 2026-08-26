@@ -18,6 +18,10 @@ Uso típico:
 
 import os
 import mysql.connector
+from dotenv import load_dotenv
+
+# Carga variables desde un archivo .env si existe (no sobreescribe las del sistema)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 
 # Configuración de conexión a la base de datos MySQL.
