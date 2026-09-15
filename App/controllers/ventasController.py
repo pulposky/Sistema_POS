@@ -22,6 +22,7 @@ Flujo típico de una venta:
 """
 
 from datetime import datetime
+import json
 from models.ventasModel import (
 
 # Controlador de ventas.
@@ -33,8 +34,97 @@ from models.ventasModel import (
     obtener_producto_por_id,
     eliminar_factura,
     guardar_factura,
+    obtener_apartados_pendientes as _obtener_apartados_pendientes_modelo,
 )
 from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
+
+from datetime import datetime as _datetime
+
+
+# ---------------------------------------------------
+# Calcula el precio final de un producto aplicando la
+# oferta vigente (reglas idénticas a las de la web)
+# ---------------------------------------------------
+def calcular_precio_oferta(precio, descuento=0, fecha_inicio=None, fecha_fin=None):
+    """
+    Calcula el precio final de un producto aplicando su descuento de oferta
+    siempre y cuando la oferta esté vigente.
+
+    Reglas (idénticas a las del marketplace web):
+      - descuento <= 0  -> se devuelve el precio normal (sin oferta).
+      - si la fecha actual está FUERA del rango [fecha_inicio, fecha_fin]
+        (alguno definido) -> se devuelve el precio normal.
+      - si la oferta está vigente:
+            precio_final = precio * (1 - descuento / 100)
+
+    El descuento se aplica sobre el precio unitario ANTES de cualquier
+    conversión de presentación (ej. cubetas de huevos = unidades * 30).
+
+    Args:
+        precio (int|float): Precio unitario (precio base del producto).
+        descuento (int|float): Porcentaje de descuento (0 = sin oferta).
+        fecha_inicio (datetime|str|None): Inicio de vigencia (None = sin límite).
+        fecha_fin (datetime|str|None): Fin de vigencia (None = sin límite).
+
+    Returns:
+        float: Precio final con oferta aplicada (o el precio normal).
+    """
+    try:
+        precio = float(precio)
+        descuento = float(descuento or 0)
+    except (TypeError, ValueError):
+        return float(precio or 0)
+
+    # Sin descuento -> precio normal
+    if descuento <= 0:
+        return precio
+
+    ahora = _datetime.now()
+
+    def a_fecha(valor):
+        if valor is None:
+            return None
+        if isinstance(valor, _datetime):
+            return valor
+        if isinstance(valor, str):
+            try:
+                return _datetime.strptime(valor, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    return _datetime.strptime(valor, "%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    return _datetime.strptime(valor, "%Y-%m-%d %H:%M:%S.%f")
+        return None
+
+    inicio = a_fecha(fecha_inicio)
+    fin = a_fecha(fecha_fin)
+
+    # Si la fecha actual está fuera del rango -> precio normal
+    if inicio is not None and ahora < inicio:
+        return precio
+    if fin is not None and ahora > fin:
+        return precio
+
+    # Oferta vigente
+    return round(precio * (1 - descuento / 100), 2)
+
+
+# ---------------------------------------------------
+# Lista de apartados web pendientes de entrega
+# ---------------------------------------------------
+def obtener_apartados_pendientes():
+    """
+    Solicita al modelo la lista de apartados web cuyo estado es
+    'pendiente' o 'confirmado', es decir, que están a la espera de
+    ser entregados en el punto de venta.
+
+    Cada registro viene unido con los datos del producto apartado
+    (nombre, unidad, precio) y su cantidad en unidades.
+
+    Returns:
+        list[dict]: Apartados pendientes con datos del producto.
+    """
+    return _obtener_apartados_pendientes_modelo()
 
 
 # ---------------------------------------------------
@@ -127,19 +217,29 @@ def preparar_producto_venta(producto, cantidad=None):
     """
     Toma un producto del catálogo y lo adapta para la venta actual.
 
+    Aplica las reglas de oferta del producto: lee las columnas de la tabla
+    `producto` (`descuento`, `fecha_inicio_oferta`, `fecha_fin_oferta`) y
+    calcula el precio final con `calcular_precio_oferta`. El descuento de la
+    oferta queda reflejado en el precio unitario que se cobra (NO modifica
+    el conteo de inventario ni el precio base del producto).
+
     Crea una copia del producto y le asigna:
     - 'cantidad': la que se pasa como parámetro o la que trae el dict (default 1).
-    - 'descuento': se recorta al rango válido [0, 100] para evitar valores
-      negativos o superiores al 100%.
-    - 'subtotal': se calcula como cantidad * precio * (1 - descuento/100).
-      Se fuerza a mínimo 0 para evitar subtotales negativos por datos erróneos.
+    - 'precio_original': el precio base del producto sin oferta (para mostrarlo
+      tachado en la interfaz).
+    - 'es_oferta': bool que indica si la oferta está vigente.
+    - 'descuento_oferta': porcentaje de la oferta aplicado.
+    - 'descuento': se recorta al rango válido [0, 100] (descuento manual de línea).
+    - 'subtotal': se calcula como cantidad * precio_con_oferta *
+      (1 - descuento_manual/100). Se fuerza a mínimo 0.
 
     Esta función es el punto de entrada para agregar productos: tanto
     agregar_producto_a_venta como otros flujos la usan internamente.
 
     Args:
         producto (dict): Producto del catálogo. Debe tener 'precio'. Opcionalmente
-            'cantidad', 'descuento'.
+            'cantidad', 'descuento', 'descuento_oferta', 'fecha_inicio_oferta',
+            'fecha_fin_oferta'.
         cantidad (int|float|None): Cantidad a llevar. Si es None, se toma la del dict.
 
     Returns:
@@ -148,13 +248,61 @@ def preparar_producto_venta(producto, cantidad=None):
     producto_venta = dict(producto)
     cantidad_valor = float(cantidad if cantidad is not None else producto_venta.get("cantidad", 1))
     producto_venta["cantidad"] = cantidad_valor
+
+    # Precio base del producto (el que se cobra ya contempla la oferta)
+    precio_base = float(producto_venta.get("precio", 0))
+
+    # Si el precio llega pre-calculado desde un apartado web (precio_aplicado),
+    # se respeta tal cual: ya incluye el descuento que se capturó al apartar.
+    # Se ignora cuando es 0/None (apartados antiguos sin precio registrado).
+    precio_desde_apartado = producto_venta.get("precio_aplicado")
+    try:
+        precio_desde_apartado_valido = (
+            precio_desde_apartado is not None
+            and float(precio_desde_apartado) > 0
+        )
+    except (TypeError, ValueError):
+        precio_desde_apartado_valido = False
+
+    if precio_desde_apartado_valido:
+        precio_final = float(precio_desde_apartado)
+        es_oferta = False
+        descuento_oferta = 0
+        precio_original = precio_base
+        fecha_inicio = None
+        fecha_fin = None
+    else:
+        # Aplica la oferta vigente del producto.
+        # 'descuento' proviene de la columna `producto.descuento` (la oferta
+        # del producto en BD), acompañado de las fechas de vigencia.
+        fecha_inicio = producto_venta.get("fecha_inicio_oferta")
+        fecha_fin = producto_venta.get("fecha_fin_oferta")
+        descuento_oferta = float(producto_venta.get("descuento", 0))
+        precio_final = calcular_precio_oferta(
+            precio_base,
+            descuento_oferta,
+            fecha_inicio,
+            fecha_fin,
+        )
+        es_oferta = precio_final < precio_base - 0.0001
+        precio_original = precio_base
+
+    producto_venta["precio"] = precio_final
+    producto_venta["precio_original"] = precio_original
+    producto_venta["es_oferta"] = es_oferta
+    producto_venta["descuento_oferta"] = descuento_oferta
+    producto_venta["fecha_inicio_oferta"] = fecha_inicio
+    producto_venta["fecha_fin_oferta"] = fecha_fin
+
+    # Descuento manual de la línea (independiente de la oferta). Se inicia en
+    # 0; el cajero lo puede modificar editablemente sobre la fila de la venta.
     producto_venta["descuento"] = max(
         0,
-        min(100, float(producto_venta.get("descuento", 0)))
+        min(100, float(producto_venta.get("descuento_manual", 0)))
     )
     producto_venta["subtotal"] = max(
         0,
-        cantidad_valor * float(producto_venta.get("precio", 0))
+        cantidad_valor * precio_final
         * (1 - producto_venta["descuento"] / 100)
     )
     return producto_venta
@@ -315,7 +463,7 @@ def formatear_stock(stock):
 # Guarda la factura en la base de datos
 # y genera automáticamente el PDF
 # ---------------------------------------------------
-def confirmar_factura(pago, productos, cliente, usuario):
+def confirmar_factura(pago, productos, cliente, usuario, id_apartado=None):
     """
     Función principal que confirma y guarda una venta completa.
 
@@ -341,6 +489,10 @@ def confirmar_factura(pago, productos, cliente, usuario):
         productos (list[dict]): Lista de productos vendidos con subtotal calculado.
         cliente (dict|None): Datos del cliente. Si es None, se usa id_cliente=1 (generico).
         usuario (dict): Datos del usuario logueado. Debe tener 'id_usuario'.
+        id_apartado (int|None): ID del apartado web que se está entregando.
+            Si es None, se trata de una venta directa de pasillo (se descuenta
+            limite_venta). Si trae un valor, es una entrega de apartado: no se
+            descuenta limite_venta y el apartado pasa a 'entregado'.
 
     Returns:
         dict|None: {'id_factura': int, 'ruta_pdf': str} o None si falla.
@@ -348,6 +500,14 @@ def confirmar_factura(pago, productos, cliente, usuario):
 
     # Calculo el total final de la venta
     total_valor = calcular_total(productos)
+
+    # Notas por empresa (campo 'lugar' de cada producto). Se guardan como JSON
+    # en la columna 'notas' para poder mostrarlas separadas al consultar.
+    notas_empresa = pago.get("notas_empresa") or {}
+    if notas_empresa:
+        notas_guardadas = json.dumps(notas_empresa, ensure_ascii=False)
+    else:
+        notas_guardadas = pago.get("notas", "")
 
     # Diccionario con los datos principales
     # que se guardarán en la factura
@@ -360,7 +520,8 @@ def confirmar_factura(pago, productos, cliente, usuario):
         "id_usuario": usuario.get("id_usuario", 1),
         "dinero_recibido": pago["dinero_recibido"],
         "cambio": pago["cambio"],
-        "notas": pago.get("notas", ""),
+        "notas": notas_guardadas,
+        "id_apartado": id_apartado,
     }
 
     # Guardo la factura (cabecera + detalles) en la base de datos
@@ -386,6 +547,7 @@ def confirmar_factura(pago, productos, cliente, usuario):
         cambio=pago["cambio"],
         efectivo=pago.get("efectivo", 0),
         transferencia=pago.get("transferencia", 0),
+        notas_empresa=notas_empresa or None,
         abrir=True,
     )
 
@@ -393,6 +555,41 @@ def confirmar_factura(pago, productos, cliente, usuario):
         "id_factura": id_factura,
         "ruta_pdf": ruta_pdf,
     }
+
+
+# ---------------------------------------------------
+# Parsea las notas de una factura: si están en formato JSON
+# {"Empresa": "nota"}, retorna el diccionario; si no, devuelve la
+# nota plana bajo la clave "General".
+# ---------------------------------------------------
+def parsear_notas_empresa(notas):
+    """
+    Interpreta el contenido de la columna `venta.notas`.
+
+    Las notas de facturas nuevas pueden guardarse como JSON por empresa:
+        {"SenaEmpresa": "banco ...", "Campesena": "comprobante ..."}
+    Las facturas antiguas tienen texto plano. Esta función normaliza
+    ambas a un diccionario {empresa: texto}.
+
+    Args:
+        notas (str|None): Contenido de la columna notas.
+
+    Returns:
+        dict: {empresa: texto} con las notas separadas.
+            Puede ser vacío si no hay notas.
+    """
+    if not notas:
+        return {}
+    texto = str(notas).strip()
+    if not texto:
+        return {}
+    try:
+        data = json.loads(texto)
+        if isinstance(data, dict):
+            return {k: str(v) for k, v in data.items() if str(v).strip()}
+    except (ValueError, TypeError):
+        pass
+    return {"General": texto}
 
 
 # ---------------------------------------------------
@@ -469,6 +666,8 @@ def cargar_factura(id_venta):
                 if producto else "-"
             ),
         })
+    # Notas de la factura separadas por empresa (si vienen en JSON)
+    factura["notas_empresa"] = parsear_notas_empresa(factura.get("notas"))
     return {
         "factura": factura,
         "cliente": cliente,
@@ -515,6 +714,7 @@ def imprimir_factura_consultada(id_venta, usuario):
         mostrar_precios=True,
         fecha_actual=factura.get("fecha"),
         es_copia=True,
+        notas_empresa=factura.get("notas_empresa") or None,
     ):
         return True
     return None

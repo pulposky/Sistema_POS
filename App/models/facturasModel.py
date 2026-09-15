@@ -16,6 +16,37 @@ independientemente del tipo de documento.
 # Importa la función de conexión a la base de datos MySQL
 from database.bd import conectar
 
+
+def _notas_legible(notas):
+    """
+    Convierte las notas de una venta a texto legible.
+
+    Las notas nuevas pueden guardarse como JSON por empresa:
+        {"SenaEmpresa": "...", "Campesena": "..."}
+    Las notas antiguas son texto plano. Esta función normaliza
+    ambas a una cadena legible para los reportes.
+
+    Args:
+        notas: Contenido de la columna notas (o None).
+
+    Returns:
+        str: Texto legible de las notas.
+    """
+    if not notas:
+        return ""
+    texto = str(notas).strip()
+    if not texto:
+        return ""
+    try:
+        data = __import__("json").loads(texto)
+        if isinstance(data, dict):
+            return " | ".join(
+                f"{k}: {v}" for k, v in data.items() if str(v).strip()
+            )
+    except (ValueError, TypeError):
+        pass
+    return texto
+
 # Modelo para consultar documentos y movimientos del sistema.
 
 def obtener_documentos():
@@ -80,7 +111,7 @@ def obtener_documentos():
 
         # ========== VENTAS ==========
         # Consulta todas las ventas con sus campos principales
-        cursor.execute("SELECT id_venta, fecha, total, id_cliente, id_usuario FROM venta")
+        cursor.execute("SELECT id_venta, fecha, total, id_cliente, id_usuario, notas FROM venta")
         ventas = cursor.fetchall()
 
         # Para cada venta, se consultan los productos asociados
@@ -107,7 +138,8 @@ def obtener_documentos():
                 'tercero':   clientes.get(venta['id_cliente'], '-'),
                 'usuario':   usuarios.get(venta['id_usuario'], '-'),
                 'total':     venta['total'],
-                'productos': ', '.join(productos) if productos else '-'
+                'productos': ', '.join(productos) if productos else '-',
+                'notas':     _notas_legible(venta.get('notas', '')),
             })
 
         # ========== COMPRAS ==========
@@ -138,7 +170,8 @@ def obtener_documentos():
                 'tercero':   proveedores.get(compra['id_proveedor'], '-'),
                 'usuario':   usuarios.get(compra['id_usuario'], '-'),
                 'total':     compra['total'],
-                'productos': ', '.join(productos) if productos else '-'
+                'productos': ', '.join(productos) if productos else '-',
+                'notas':     ''
             })
 
         # ========== REMISIONES ==========
@@ -171,7 +204,8 @@ def obtener_documentos():
                 'tercero':   clientes.get(remision['id_cliente'], '-'),
                 'usuario':   usuarios.get(remision['id_usuario'], '-'),
                 'total':     0,
-                'productos': ', '.join(productos) if productos else '-'
+                'productos': ', '.join(productos) if productos else '-',
+                'notas':     ''
             })
 
         # Ordena todos los documentos por fecha descendente
@@ -265,6 +299,7 @@ def obtener_ventas_detalladas():
                 v.fecha,
                 v.id_cliente,
                 v.id_usuario,
+                v.notas,
                 p.nombre           AS producto,
                 dv.cantidad        AS cantidad,
                 dv.precio_unitario AS precio_unitario,
@@ -289,6 +324,7 @@ def obtener_ventas_detalladas():
                 'cantidad':        r['cantidad'],
                 'precio_unitario': r['precio_unitario'],
                 'subtotal':        r['subtotal'],
+                'notas':   _notas_legible(r.get('notas', '')),
             })
 
     except Exception as err:

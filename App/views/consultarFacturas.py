@@ -141,6 +141,7 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         ft.DataColumn(ft.Text("Usuario")),
         ft.DataColumn(ft.Text("Total")),
         ft.DataColumn(ft.Text("Productos")),
+        ft.DataColumn(ft.Text("Notas")),
     ]
 
     # Columnas para el modo detallado (una fila por línea de producto)
@@ -153,6 +154,7 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         ft.DataColumn(ft.Text("Cantidad")),
         ft.DataColumn(ft.Text("V. Unitario")),
         ft.DataColumn(ft.Text("Subtotal")),
+        ft.DataColumn(ft.Text("Notas")),
     ]
 
     # Tabla principal de documentos
@@ -206,6 +208,7 @@ def consultarFacturas(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.DataCell(ft.Text(cantidad_txt)),
                     ft.DataCell(ft.Text(f"${d.get('precio_unitario', 0):,.2f}")),
                     ft.DataCell(ft.Text(f"${d.get('subtotal', 0):,.2f}")),
+                    ft.DataCell(ft.Text(str(d.get("notas", "-")))),
                 ])
             )
 

@@ -1,6 +1,7 @@
 import flet as ft
 from models.ventasModel import buscar_producto, actualizar_producto
 from utils.notificaciones import mostrar_notificacion
+from controllers import ventasController as ventas_controller
 
 # ============================================================================
 # MÓDULO DE BÚSQUEDA Y SELECCIÓN DE PRODUCTOS
@@ -375,9 +376,19 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         for i, prod in enumerate(productos_encontrados):
 
             unidad = prod.get('unidad', 'UND')
-            # Muestro precio o solo unidad según la configuración
+
+            # Calcula el precio final aplicando la oferta vigente del producto,
+            # para mostrar el descuento correcto en los resultados de búsqueda.
+            precio_mostrar = ventas_controller.calcular_precio_oferta(
+                prod.get('precio', 0),
+                prod.get('descuento', 0),
+                prod.get('fecha_inicio_oferta'),
+                prod.get('fecha_fin_oferta'),
+            )
+
+            # Muestro precio (con oferta aplicada) o solo unidad según la configuración
             detalle_producto = (
-                f"${prod.get('precio', 0)} / {unidad}"
+                f"${precio_mostrar:,.2f} / {unidad}"
                 if mostrar_precio
                 else str(unidad)
             )
@@ -511,7 +522,21 @@ def buscar_producto_view(pagina: ft.Page, agregar_producto_a_tabla, mostrar_prec
         info_producto.controls[1].value = f"Nombre: {producto_datos_editables.get('nombre', '')}"
         info_producto.controls[2].value = f"Unidad: {producto_datos_editables.get('unidad', '')}"
         info_producto.controls[3].value = f"Empresa/Lugar: {producto_datos_editables.get('lugar', '')}"
-        info_producto.controls[4].value = f"Precio: ${producto_datos_editables.get('precio', 0)}"
+        # Precio base y, si hay oferta vigente, el precio final con el descuento aplicado
+        _base = float(producto_datos_editables.get('precio', 0))
+        _fin = ventas_controller.calcular_precio_oferta(
+            _base,
+            producto_datos_editables.get('descuento', 0),
+            producto_datos_editables.get('fecha_inicio_oferta'),
+            producto_datos_editables.get('fecha_fin_oferta'),
+        )
+        if _fin < _base - 0.0001:
+            info_producto.controls[4].value = (
+                f"Precio: ${_base:,.2f} → ${_fin:,.2f} "
+                f"(-{producto_datos_editables.get('descuento', 0):.0f}% OFERTA)"
+            )
+        else:
+            info_producto.controls[4].value = f"Precio: ${_base:,.2f}"
         info_producto.controls[5].value = f"Stock: {producto_datos_editables.get('stock', 0)}"
         info_producto.controls[6].value = f"Descripción: {producto_datos_editables.get('descripcion', '') or 'Sin descripción'}"
         info_producto.controls[7].value = f"Categoría: {producto_datos_editables.get('categoria', 'Abonos y Sustratos')}"

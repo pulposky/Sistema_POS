@@ -15,7 +15,8 @@ import traceback
 #   - Para Transferencia pura, el monto total se registra automáticamente.
 #   - Para Crédito, no se requiere ningún monto (la deuda queda pendiente).
 #   - Para Mixto, permite dividir entre efectivo y transferencia.
-#   - Incluye un campo de notas para registrar banco, comprobante o referencia.
+#   - Muestra un campo de notas por cada empresa con productos en la venta
+#     (SenaEmpresa, Campesena, etc.).
 #
 # Flujo:
 #   1. El usuario elige un método de pago con los radio buttons.
@@ -25,7 +26,7 @@ import traceback
 # ============================================================================
 
 
-def metodo_pago_view(pagina: ft.Page, total, callback):
+def metodo_pago_view(pagina: ft.Page, total, callback, productos=None):
     """
     Crea el diálogo de selección de método de pago.
 
@@ -40,6 +41,10 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             - transferencia (float): Monto por transferencia.
             - cambio (float): Cambio a devolver (positivo si se dio de más).
             - notas (str): Notas adicionales (banco, comprobante, etc.).
+            - notas_empresa (dict): Notas separadas por empresa {"SenaEmpresa": "...", "Campesena": "..."}.
+        productos (list[dict], optional): Lista de productos de la venta.
+            Se usa para detectar las empresas (campo 'lugar') y mostrar
+            un campo de nota por cada empresa presente.
 
     Retorna:
         ft.AlertDialog: Componente de diálogo listo para mostrarse.
@@ -103,16 +108,40 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         visible=False
     )
 
-    # Campo de notas: se usa para banco, número de comprobante o referencia
-    campo_nota = ft.TextField(
-        label="Notas",
-        hint_text="Ej.: banco, número de comprobante o referencia",
-        width=320,
-        multiline=True,
-        min_lines=1,
-        max_lines=3,
-        visible=False,
-    )
+    # -------------------------------------------------------
+    # CAMPOS DE NOTAS DINÁMICOS POR EMPRESA
+    # -------------------------------------------------------
+    # Se detectan las empresas (campo 'lugar') de los productos
+    # y se crea un campo de nota por cada una.
+    empresas_detectadas = []
+    if productos:
+        empresas_detectadas = sorted(set(
+            str(p.get("lugar", "SenaEmpresa")).strip()
+            for p in productos
+            if p.get("lugar")
+        ))
+
+    # Si no se detectaron empresas, usar "General" como fallback
+    if not empresas_detectadas:
+        empresas_detectadas = ["General"]
+
+    # Diccionario de campos de nota: {empresa: TextField}
+    campos_nota_empresa = {}
+
+    # Lista de controles visuales para los campos de nota
+    controles_notas = []
+    for empresa in empresas_detectadas:
+        campo = ft.TextField(
+            label=f"Nota {empresa}",
+            hint_text=f"Nota para {empresa} (banco, comprobante, ref.)",
+            width=320,
+            multiline=True,
+            min_lines=1,
+            max_lines=3,
+            visible=True,
+        )
+        campos_nota_empresa[empresa] = campo
+        controles_notas.append(campo)
 
     # Mensaje informativo para transferencia pura
     texto_transferencia = ft.Text(
@@ -170,8 +199,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         texto_transferencia.visible  = False
         fila_efectivo.visible        = False
         fila_transferencia.visible   = False
-        campo_nota.visible           = False
-        campo_nota.value             = ""
+        # El campo de notas siempre está visible (se registra la referencia
+        # en cualquier método de pago).
 
         if metodo_actual == "Efectivo":
             # Solo campo de efectivo, reseteo transferencia a 0
@@ -183,7 +212,6 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             # Transferencia pura: el monto es el total automáticamente
             texto_transferencia.visible = True
             # En transferencias se registra el banco o comprobante.
-            campo_nota.visible = True
 
         elif metodo_actual == "Mixto":
             # Muestro ambos campos (efectivo y transferencia) y campo de notas
@@ -191,12 +219,10 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
             fila_efectivo.visible        = True
             fila_transferencia.visible   = True
             # En pago mixto se puede aclarar la referencia de transferencia.
-            campo_nota.visible           = True
 
         elif metodo_actual == "Credito":
             # No hay campos de monto, solo muestro el mensaje de crédito
             texto_credito.visible = True
-            campo_nota.visible = True
 
         calcular()
         pagina.update()
@@ -208,6 +234,18 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
         Cierra el diálogo antes de ejecutar el callback para evitar
         problemas de UI si el callback tarda.
         """
+        # Recopilar notas por empresa en un diccionario
+        notas_empresa = {}
+        for empresa, campo in campos_nota_empresa.items():
+            valor = (campo.value or "").strip()
+            if valor:
+                notas_empresa[empresa] = valor
+
+        # Nota general combinada (para compatibilidad)
+        nota_general = " | ".join(
+            f"{emp}: {txt}" for emp, txt in notas_empresa.items()
+        ) if notas_empresa else ""
+
         # 1. Crédito: no requiere validar montos
         if metodo_actual == "Credito":
             cerrar_dialogo()
@@ -218,7 +256,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     "efectivo":        0,
                     "transferencia":   0,
                     "cambio":          0,
-                    "notas":           (campo_nota.value or "").strip(),
+                    "notas":           nota_general,
+                    "notas_empresa":   notas_empresa,
                 })
             except Exception as err:
                 print(f"[metodo_pago] Error en callback Credito: {err}")
@@ -235,7 +274,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     "efectivo":        0,
                     "transferencia":   total,
                     "cambio":          0,
-                    "notas":           (campo_nota.value or "").strip(),
+                    "notas":           nota_general,
+                    "notas_empresa":   notas_empresa,
                 })
             except Exception as err:
                 print(f"[metodo_pago] Error en callback Transferencia: {err}")
@@ -275,7 +315,8 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                 "efectivo":        efectivo,
                 "transferencia":   transferencia,
                 "cambio":          cambio,
-                "notas":           (campo_nota.value or "").strip(),
+                "notas":           nota_general,
+                "notas_empresa":   notas_empresa,
             })
         except Exception as err:
             print(f"[metodo_pago] Error en callback de pago: {err}")
@@ -317,12 +358,14 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
 
     # Construyo el diálogo con los radio buttons de método de pago,
     # los campos de monto y los botones de acción
+    # Incremento la altura según cuántas empresas tengan campo de nota
+    altura_dialogo = 560 + 70 * max(0, len(empresas_detectadas) - 1)
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Text("Método de pago", weight="bold"),
         content=ft.Container(
             width=380,
-            height=560,
+            height=altura_dialogo,
             content=ft.Column(
                 [
                     texto_total,
@@ -343,7 +386,7 @@ def metodo_pago_view(pagina: ft.Page, total, callback):
                     ),
                     campos_pago,
                     texto_credito,
-                    campo_nota,
+                    *controles_notas,
                     texto_transferencia,
                 ],
                 spacing=10,

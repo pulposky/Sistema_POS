@@ -198,9 +198,6 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         if modo_consulta:
             return
 
-        # Obtener el stock actual del producto
-        stock_actual = producto.get("stock", 0)
-
         # Cantidad que el usuario quiere agregar
         cantidad = producto.get("cantidad", 1)
 
@@ -239,7 +236,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.IconButton(
                         icon=ft.Icons.CLOSE,
                         icon_color=ft.Colors.RED,
-                        on_click=lambda e, idx=-1: eliminar_producto(idx)
+                        on_click=lambda e, idx=productos.index(producto): eliminar_producto(idx)
                     )
                 )
                 ]
@@ -864,13 +861,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # Abre el diálogo de creación rápida de productos o clientes (F8).
     def crearP_C():
-        def on_crear(opcion):
-            if opcion == "CrearP":
-                print("Abrir crear producto")
-            elif opcion == "CrearU":
-                print("Abrir crear usuario") 
-
-        dialog = Crear(pagina, on_crear)
+        dialog = Crear(pagina, lambda _opcion: None)
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
@@ -963,7 +954,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     )
     
     # Botón para crear producto o cliente (atajo: F8)
-    btn_registar_cliente = ft.Button(
+    btn_registrar_cliente = ft.Button(
         "Crear P/C [F8]",
         on_click=lambda _: crearP_C(),
         width=190,
@@ -1085,7 +1076,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         btn_nueva_factura,
                         btn_buscar_producto,
                         btn_buscar_cliente,
-                        btn_registar_cliente
+                        btn_registrar_cliente
                     ],
                     spacing=5
                 ),

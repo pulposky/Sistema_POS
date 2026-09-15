@@ -640,15 +640,21 @@ def guardar_factura(factura_datos, detalles):
     transacción atómica. Si cualquier parte falla, se revierten todos
     los cambios.
 
-    Esta función realiza tres operaciones principales:
-    1. Inserta la cabecera de la venta en la tabla 'venta'
-    2. Inserta cada producto vendido en 'detalle_venta'
-    3. Descuenta el stock de cada producto vendido
+    Esta función realiza las siguientes operaciones:
+    1. Inserta la cabecera de la venta (con su id_apartado si aplica).
+    2. Inserta cada producto vendido en 'detalle_venta'.
+    3. Descuenta el stock de cada producto vendido.
+    4. Según el tipo de venta:
+       - VENTA DIRECTA (id_apartado IS NULL): también descuenta
+         `limite_venta` y desactiva el producto si queda en 0.
+       - ENTREGA DE APARTADO WEB (id_apartado NOT NULL): NO toca
+         `limite_venta` (ya se restó en la web al apartar) y marca el
+         apartado como 'entregado'.
 
     Parámetros:
         factura_datos (dict): Datos de la cabecera de la venta.
             Claves esperadas: fecha, total, metodo_pago, id_cliente,
-            id_usuario, dinero_recibido, cambio, notas.
+            id_usuario, dinero_recibido, cambio, notas, id_apartado.
         detalles (list[dict]): Lista de productos vendidos.
             Cada dict debe tener: id_producto (o id), cantidad, precio, subtotal.
 
@@ -662,12 +668,15 @@ def guardar_factura(factura_datos, detalles):
     # Crea cursor estándar para operaciones de escritura
     cursor = conexion.cursor()
 
+    # Tipo de venta: None = directa de pasillo; entero = entrega de apartado web
+    id_apartado = factura_datos.get('id_apartado')
+    es_entrega_apartado = id_apartado is not None
+
     # Bloque try/except para manejo de errores y rollback
     try:
 
         # Consulta SQL para insertar la cabecera de la venta
         # El estado se establece como 'ACTIVA' por defecto
-        # Se insertan todos los campos financieros: total, dinero recibido, cambio
         sql_venta = """
             INSERT INTO venta (
                 fecha,
@@ -678,16 +687,14 @@ def guardar_factura(factura_datos, detalles):
                 id_usuario,
                 dinero_recibido,
                 cambio,
-                notas
+                notas,
+                id_apartado
             )
 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         # Ejecuta el INSERT con los datos de la venta
-        # Se usa .get() con valores por defecto para campos opcionales
-        # El estado siempre es "ACTIVA" al crear una nueva venta
-        # id_usuario default es 1 (administrador) si no se especifica
         cursor.execute(sql_venta, (
             factura_datos.get('fecha'),
             factura_datos.get('total', 0),
@@ -697,12 +704,12 @@ def guardar_factura(factura_datos, detalles):
             factura_datos.get('id_usuario', 1),
             factura_datos.get('dinero_recibido', 0),
             factura_datos.get('cambio', 0),
-            factura_datos.get('notas', '')
+            factura_datos.get('notas', ''),
+            id_apartado
 
         ))
 
         # Obtiene el ID auto-generado de la venta recién insertada
-        # Se usa después para vincular cada detalle con esta venta
         id_venta = cursor.lastrowid
 
         # ------------------------------------
@@ -713,7 +720,6 @@ def guardar_factura(factura_datos, detalles):
         for detalle in detalles:
 
             # Obtiene el ID del producto, aceptando ambas claves posibles
-            # 'id_producto' o 'id' por compatibilidad con diferentes fuentes
             id_producto = (
                 detalle.get('id_producto')
                 or detalle.get('id')
@@ -722,8 +728,44 @@ def guardar_factura(factura_datos, detalles):
             # Cantidad de este producto en la venta
             cantidad = detalle.get('cantidad')
 
+            # Indica si esta línea es el producto reservado del apartado web.
+            # Solo esa línea va en UNIDADES y sin descontar limite_venta (ya
+            # se restó al apartar en la web). Las líneas adicionales de pasillo
+            # que el cajero agregue durante una entrega se tratan como venta
+            # directa (conversión por si son huevos y descuento de limite_venta).
+            es_apartado = bool(detalle.get('es_apartado'))
+
+            # -----------------------------------------
+            # CANTIDAD A DESCONTAR DEL STOCK (en UNIDADES)
+            # -----------------------------------------
+            # - Línea de apartado web: la cantidad ya viene en UNIDADES (la
+            #   web guardó el apartado convertido a unidades), por lo que
+            #   se usa tal cual, sin conversión.
+            # - Línea de pasillo (venta directa o extra en entrega de
+            #   apartado): la cantidad puede ser en CUBETAS (huevos), por lo
+            #   que se convierte a unidades (x30).
+            if es_apartado:
+                # Unidades ya reservadas en la web
+                cantidad_unidades = float(cantidad or 0)
+                # El detalle se registra en las mismas unidades reservadas
+                cantidad_detalle = cantidad_unidades
+                # No se descuenta limite_venta ni se toca el estado del
+                # producto aquí (ya se gestionó al apartar en la web)
+                descontar_limite = False
+            else:
+                # Detecta huevos por nombre o unidad (1 cubeta = 30 unidades)
+                nombre_producto = str(detalle.get('nombre') or '').lower()
+                unidad_producto = str(detalle.get('unidad') or '').lower()
+                es_huevo = 'huevo' in nombre_producto or 'cubeta' in unidad_producto
+
+                # Unidades a descontar del inventario
+                cantidad_unidades = cantidad * 30 if es_huevo else cantidad
+                # Cantidad física que se muestra en el detalle
+                # (en cubetas para huevos)
+                cantidad_detalle = cantidad
+                descontar_limite = True
+
             # Consulta SQL para insertar cada línea de detalle de venta
-            # Vincula el detalle con la venta padre mediante id_venta
             sql_detalle = """
                 INSERT INTO detalle_venta (
 
@@ -742,7 +784,7 @@ def guardar_factura(factura_datos, detalles):
             cursor.execute(sql_detalle, (
                 id_venta,
                 id_producto,
-                cantidad,
+                cantidad_detalle,
                 detalle.get('precio'),
                 detalle.get('subtotal')
             ))
@@ -750,24 +792,61 @@ def guardar_factura(factura_datos, detalles):
             # --------------------------------
             # DESCONTAR STOCK
             # --------------------------------
-
-            # Consulta SQL que descuenta la cantidad vendida del stock
-            # del producto. Se usa resta (stock - cantidad) para mantener
-            # el stock siempre actualizado. Esto garantiza que el inventario
-            # se refleje correctamente después de cada venta
+            # En ambos tipos de venta se descuenta stock físico del producto
             sql_actualizar_stock = """
                 UPDATE producto
                 SET stock = stock - %s
                 WHERE id_producto = %s
             """
             cursor.execute(sql_actualizar_stock, (
-                cantidad,
+                cantidad_unidades,
                 id_producto
             ))
 
+            # --------------------------------
+            # VENTA DIRECTA: DESCONTAR LIMITE_VENTA
+            # --------------------------------
+            # Solo en ventas directas de pasillo se descuenta el cupo en
+            # línea. En la entrega de un apartado web NO se toca, porque ya
+            # se restó cuando el cliente apartó el producto en la web.
+            if descontar_limite:
+                # Se descuenta limite_venta en unidades. Se hace en DOS
+                # pasos para evitar la ambigüedad de MySQL (dentro de un
+                # mismo UPDATE las referencias pueden tomar el valor ya
+                # actualizado y falsear la condición de desactivación).
+                sql_actualizar_limite = """
+                    UPDATE producto
+                    SET limite_venta = limite_venta - %s
+                    WHERE id_producto = %s
+                      AND limite_venta > 0
+                """
+                cursor.execute(sql_actualizar_limite, (
+                    cantidad_unidades,
+                    id_producto
+                ))
+
+                # Si limite_venta quedó en 0 o menos, se desactiva el producto
+                # (igual que hace la web al agotar el cupo)
+                sql_desactivar = """
+                    UPDATE producto
+                    SET estado = 'inactivo'
+                    WHERE id_producto = %s
+                      AND limite_venta <= 0
+                """
+                cursor.execute(sql_desactivar, (id_producto,))
+
+        # --------------------------------
+        # ENTREGA DE APARTADO: MARCAR COMO ENTREGADO
+        # --------------------------------
+        if es_entrega_apartado:
+            sql_entregar_apartado = """
+                UPDATE apartados
+                SET estado = 'entregado'
+                WHERE id_apartado = %s
+            """
+            cursor.execute(sql_entregar_apartado, (id_apartado,))
+
         # Confirma TODAS las inserciones y actualizaciones en una sola transacción
-        # Si cualquier operación anterior falló, esta línea no se alcanza
-        # y el bloque except se encarga de hacer rollback
         conexion.commit()
 
         # Libera recursos
@@ -778,8 +857,7 @@ def guardar_factura(factura_datos, detalles):
         return id_venta
 
     except Exception as e:
-        # Si ocurre cualquier error, revierte TODA la transacción:
-        # la venta, todos los detalles y todos los descuentos de stock
+        # Si ocurre cualquier error, revierte TODA la transacción
         conexion.rollback()
 
         # Libera recursos
@@ -945,6 +1023,79 @@ def crear_producto(datos):
 
         # Retorna None indicando fallo
         return None
+
+    finally:
+        # Garantiza la liberación de recursos siempre
+        cursor.close()
+        conexion.close()
+
+
+# =====================================================
+# OBTENER APARTADOS PENDIENTES (ENTREGAS WEB)
+# =====================================================
+
+def obtener_apartados_pendientes():
+    """
+    Obtiene los apartados web que están a la espera de ser entregados en
+    el punto de venta (estado 'pendiente' o 'confirmado').
+
+    Se unen con la tabla 'producto' para mostrar el nombre, la unidad y el
+    precio del artículo apartado. La cantidad propia del apartado se guarda
+    en UNIDADES (la web convierte cubetas a unidades al reservar).
+
+    Retorna:
+        list[dict]: Lista de apartados pendientes con los datos del producto.
+        Retorna lista vacía si no hay resultados o si falla la conexión.
+    """
+
+    # Establece la conexión a la base de datos
+    conexion = conectar()
+
+    # Si la conexión falla, retorna lista vacía como valor seguro
+    if not conexion:
+        return []
+
+    # Cursor tipo diccionario para acceder a las columnas por nombre
+    cursor = conexion.cursor(dictionary=True)
+
+    # Bloque try/finally para garantizar el cierre de recursos
+    try:
+
+        # Consulta que une apartados pendientes/confirmados con su producto
+        # Ordena por fecha ascendente: los más antiguos primero (FIFO)
+        sql = """
+            SELECT
+                ap.id_apartado,
+                ap.nombre_cliente,
+                ap.cantidad,
+                ap.fecha,
+                ap.precio_aplicado,
+                p.id_producto,
+                p.codigo,
+                p.nombre,
+                p.unidad,
+                p.precio
+            FROM apartados ap
+            JOIN producto p ON p.id_producto = ap.producto
+            WHERE ap.estado IN ('pendiente', 'confirmado')
+            ORDER BY ap.fecha ASC
+        """
+
+        # Ejecuta la consulta
+        cursor.execute(sql)
+
+        # Obtiene todas las filas como lista de diccionarios
+        resultado = cursor.fetchall()
+
+        # Retorna la lista de apartados pendientes (puede ser vacía)
+        return resultado
+
+    except Exception as err:
+        # Imprime el error para depuración
+        print(f"Error al obtener apartados pendientes: {err}")
+
+        # Retorna lista vacía en caso de error
+        return []
 
     finally:
         # Garantiza la liberación de recursos siempre

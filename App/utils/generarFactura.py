@@ -293,6 +293,7 @@ def _crear_texto_ticket(
     efectivo=None,
     transferencia=None,
     es_copia=False,
+    notas_empresa=None,
 ):
     """
     Construye el texto completo del ticket térmico línea por línea.
@@ -376,6 +377,14 @@ def _crear_texto_ticket(
             lineas.extend(_campo_ticket("Cantidad", f"{_cantidad_texto(cantidad)} {unidad}"))
 
         lineas.extend(_campo_ticket("Empresa", empresa))
+
+    # --- Notas por empresa ---
+    if notas_empresa:
+        lineas.extend([LINEA_TERMICA, "NOTAS"])
+        for empresa, texto in notas_empresa.items():
+            texto = str(texto or "").strip()
+            if texto:
+                lineas.extend(_campo_ticket(empresa, texto))
 
     # --- Desglose por empresa y totales (solo en ventas) ---
     if mostrar_precios:
@@ -476,6 +485,7 @@ def imprimir_factura_datos(
     mostrar_precios=True,
     fecha_actual=None,
     es_copia=False,
+    notas_empresa=None,
 ):
     """
     Punto de entrada principal para imprimir un ticket térmico directamente
@@ -556,6 +566,7 @@ def imprimir_factura_datos(
         efectivo=efectivo,
         transferencia=transferencia,
         es_copia=es_copia,
+        notas_empresa=notas_empresa,
     )
     return imprimir_ticket_termico(texto_ticket, nombre_impresora)
 
@@ -576,6 +587,7 @@ def generar_factura_pdf(
     titulo_documento="FACTURA DE VENTA",
     prefijo_archivo="factura",
     mostrar_precios=True,
+    notas_empresa=None,
 ):
     """
     Genera un PDF con formato de recibo/boleta de 58mm y opcionalmente
@@ -762,7 +774,19 @@ def generar_factura_pdf(
             elementos.append(Paragraph(f"Empresa: {empresa}", estilo_normal))
 
 
-        elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
+        elementos.append(LINEA_TICKET, estilo_centro)
+
+        # ---------------- NOTAS POR EMPRESA ----------------
+
+        if notas_empresa:
+            elementos.append(Paragraph("NOTAS", estilo_bold))
+            for empresa, texto in notas_empresa.items():
+                texto = str(texto or "").strip()
+                if texto:
+                    elementos.append(
+                        Paragraph(f"<b>{empresa}:</b> {texto}", estilo_normal)
+                    )
+            elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 
         # ---------------- DESGLOSE POR EMPRESA ----------------
 
@@ -865,6 +889,7 @@ def generar_factura_pdf(
                 es_mixto=es_mixto,
                 efectivo=efectivo,
                 transferencia=transferencia,
+                notas_empresa=notas_empresa,
             )
             # Si la impresión térmica falla, abro el PDF en el visor
             if not imprimir_ticket_termico(texto_ticket):
@@ -877,24 +902,3 @@ def generar_factura_pdf(
         import traceback
         traceback.print_exc()
         return None
-
-
-def imprimir_factura(ruta_pdf, nombre_impresora=None):
-    """
-    Función de compatibilidad con llamadas antiguas al sistema.
-    La impresión principal ahora se hace como ticket térmico RAW.
-    Esta función simplemente abre el PDF en el visor del sistema.
-
-    Parámetros:
-        ruta_pdf (str): Ruta al archivo PDF a abrir.
-        nombre_impresora (str, optional): No se usa, mantenido por compatibilidad.
-
-    Retorna:
-        bool: True si el archivo existía y se pudo abrir.
-    """
-    if not os.path.exists(ruta_pdf):
-        print(f"No se encontró el archivo: {ruta_pdf}")
-        return False
-
-    _abrir_archivo(ruta_pdf)
-    return True

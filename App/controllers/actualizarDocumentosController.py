@@ -17,7 +17,7 @@ Flujo típico:
 
 """Reglas de negocio para cargar y actualizar ventas, compras y remisiones."""
 from models.actualizarDocumentosModel import actualizar_documento as persistir_actualizacion
-from controllers.ventasController import cargar_factura
+from controllers.ventasController import cargar_factura, parsear_notas_empresa
 from controllers.comprasController import cargar_compra
 from controllers.remisionController import cargar_remision
 
@@ -52,7 +52,16 @@ def cargar_documento(tipo, numero):
     if tipo == "VENTA":
         datos = cargar_factura(numero)
         if datos:
-            return {"cabecera": datos["factura"], "tercero": datos["cliente"], "productos": datos["productos"]}
+            cabecera = datos["factura"]
+            # Formateo las notas por empresa en texto legible para el campo editable
+            notas = parsear_notas_empresa(cabecera.get("notas"))
+            if notas:
+                cabecera["notas"] = " | ".join(
+                    f"{emp}: {txt}" for emp, txt in notas.items()
+                )
+            else:
+                cabecera["notas"] = ""
+            return {"cabecera": cabecera, "tercero": datos["cliente"], "productos": datos["productos"]}
     elif tipo == "COMPRA":
         datos = cargar_compra(numero)
         if datos:

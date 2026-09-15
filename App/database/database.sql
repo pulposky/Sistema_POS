@@ -69,11 +69,28 @@ CREATE TABLE IF NOT EXISTS `producto` (
   `descripcion` VARCHAR(250)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-ALTER TABLE `producto`
-  ADD COLUMN IF NOT EXISTS `descripcion` TEXT DEFAULT '';
+-- Agrega columnas a producto SOLO si no existen (compatible con MySQL,
+-- que no soporta "ADD COLUMN IF NOT EXISTS"). Se usa information_schema
+-- + PREPARE/EXECUTE para que sea re-ejecutable sin error.
+SET @db = DATABASE();
 
-ALTER TABLE `producto`
-  ADD COLUMN IF NOT EXISTS `categoria` VARCHAR(100) DEFAULT 'Otros';
+-- producto.descripcion
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'producto' AND COLUMN_NAME = 'descripcion') = 0,
+  'ALTER TABLE `producto` ADD COLUMN `descripcion` TEXT DEFAULT NULL',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- producto.categoria
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'producto' AND COLUMN_NAME = 'categoria') = 0,
+  'ALTER TABLE `producto` ADD COLUMN `categoria` VARCHAR(100) DEFAULT ''Otros''',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ------------------------------------------------------------
 -- Tabla: venta
@@ -89,6 +106,7 @@ CREATE TABLE IF NOT EXISTS `venta` (
   `dinero_recibido` DECIMAL(12, 2) DEFAULT 0.00,
   `cambio` DECIMAL(12, 2) DEFAULT 0.00,
   `notas` VARCHAR(150),
+  `id_apartado` INT DEFAULT NULL,
   FOREIGN KEY (`id_cliente`) REFERENCES `clientes`(`id_cliente`),
   FOREIGN KEY (`id_usuario`) REFERENCES `usuarios`(`id_usuario`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -198,9 +216,16 @@ CREATE TABLE IF NOT EXISTS `detalle_remision` (
 -- ============================================================
 
 -- Columna que la web usa para controlar el stock en linea
--- (el POS solo usa producto.stock para el inventario fisico)
-ALTER TABLE `producto`
-  ADD COLUMN IF NOT EXISTS `limite_venta` INT NOT NULL DEFAULT 0;
+-- (el POS solo usa producto.stock para el inventario fisico).
+-- Se agrega solo si no existe (compatible con MySQL).
+SET @db = DATABASE();
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'producto' AND COLUMN_NAME = 'limite_venta') = 0,
+  'ALTER TABLE `producto` ADD COLUMN `limite_venta` INT NOT NULL DEFAULT 0',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ------------------------------------------------------------
 -- Tabla: apartados (reservas de la web)
@@ -216,8 +241,57 @@ CREATE TABLE IF NOT EXISTS `apartados` (
   FOREIGN KEY (`producto`) REFERENCES `producto`(`id_producto`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX IF NOT EXISTS `idx_apartados_estado` ON `apartados`(`estado`);
-CREATE INDEX IF NOT EXISTS `idx_apartados_cliente` ON `apartados`(`nombre_cliente`);
+-- =====================================================================
+-- INTEGRACIÓN CON LA WEB (compatible con MySQL: todo se agrega solo si
+-- no existe, usando information_schema + PREPARE/EXECUTE para poder
+-- re-ejecutar este script sin errores, tanto en base nueva como existente)
+-- =====================================================================
+SET @db = DATABASE();
+
+-- Índices de la tabla apartados (solo si no existen)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'apartados' AND INDEX_NAME = 'idx_apartados_estado') = 0,
+  'CREATE INDEX `idx_apartados_estado` ON `apartados`(`estado`)',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'apartados' AND INDEX_NAME = 'idx_apartados_cliente') = 0,
+  'CREATE INDEX `idx_apartados_cliente` ON `apartados`(`nombre_cliente`)',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Columna venta.id_apartado (NULL = venta directa; no NULL = entrega de apartado)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'venta' AND COLUMN_NAME = 'id_apartado') = 0,
+  'ALTER TABLE `venta` ADD COLUMN `id_apartado` INT DEFAULT NULL AFTER `notas`',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- FK de la venta hacia el apartado (la columna/apartados ya existen aquí)
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+   WHERE CONSTRAINT_SCHEMA = @db AND TABLE_NAME = 'venta'
+     AND CONSTRAINT_NAME = 'fk_venta_apartado' AND CONSTRAINT_TYPE = 'FOREIGN KEY') = 0,
+  'ALTER TABLE `venta` ADD CONSTRAINT `fk_venta_apartado` FOREIGN KEY (`id_apartado`) REFERENCES `apartados`(`id_apartado`) ON DELETE SET NULL ON UPDATE CASCADE',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Índice para acelerar la búsqueda por apartado
+SET @sql = IF(
+  (SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'venta' AND INDEX_NAME = 'idx_venta_apartado') = 0,
+  'CREATE INDEX `idx_venta_apartado` ON `venta`(`id_apartado`)',
+  'SELECT 0'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ------------------------------------------------------------
 -- Tabla: notificaciones (alertas para el admin)

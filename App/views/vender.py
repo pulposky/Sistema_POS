@@ -3,6 +3,7 @@ from datetime import datetime
 import asyncio
 from utils.buscarProducto import buscar_producto_view
 from utils.buscarCliente import buscar_cliente_view
+from utils.entregarApartado import entregar_apartado_view
 from controllers import ventasController as ventas_controller
 from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
@@ -64,6 +65,12 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Se asigna cuando el usuario elige un cliente desde el buscador (F1).
     # Es un diccionario con nombre, rol, id, etc.
     cliente_actual = None
+
+    # Apartado web que se está entregando en esta factura.
+    # None = venta directa de pasillo; int = id del apartado en entrega (F9).
+    # Al entregarse, se precarga el producto reservado y al facturar NO se
+    # descuenta limite_venta (ya se restó en la web) y el apartado pasa a 'entregado'.
+    apartado_actual = None
 
     # Lista de facturas cargadas desde la base de datos para navegación (F6/F7)
     facturas = []
@@ -134,7 +141,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # se muestran solo cuando se carga una factura existente)
     texto_fecha = ft.Text("", size=13, weight="bold", visible=False)
     usuarioFactura = ft.Text("", size=13, weight="bold", visible=False)
-    notaFactura = ft.Text("", size=13, visible=False)
+    # Columna para las notas (una línea por empresa si aplica)
+    notaFactura = ft.Column([], spacing=4, visible=False)
 
     # ---------------- FUNCIONES ----------------
 
@@ -263,6 +271,59 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def formatear_stock(stock):
         return ventas_controller.formatear_stock(stock)
 
+    # Renderiza la celda de precio unitario de una fila. Si el producto tiene
+    # una oferta vigente, muestra el precio original tachado, el precio final
+    # (con oferta) y una etiqueta (badge) con el porcentaje de descuento.
+    def crear_celda_precio(producto):
+        precio_final = float(producto.get('precio', 0))
+        original = float(producto.get('precio_original', precio_final))
+        es_oferta = bool(producto.get('es_oferta'))
+
+        if es_oferta and original > precio_final:
+            badge = ft.Container(
+                content=ft.Text(
+                    f"-{producto.get('descuento_oferta', 0):.0f}%",
+                    size=10,
+                    weight="bold",
+                    color=ft.Colors.WHITE
+                ),
+                bgcolor=ft.Colors.RED,
+                padding=ft.Padding.symmetric(horizontal=4, vertical=1),
+                border_radius=8,
+            )
+            return ft.DataCell(
+                ft.Row(
+                    [
+                        ft.Column(
+                            [
+                                ft.Text(
+                                    f"${original:,.2f}",
+                                    size=11,
+                                    color=ft.Colors.GREY,
+                                    style=ft.TextStyle(
+                                        decoration=ft.TextDecoration.LINE_THROUGH
+                                    )
+                                ),
+                                ft.Text(
+                                    f"${precio_final:,.2f}",
+                                    weight="bold",
+                                    color=ft.Colors.RED
+                                ),
+                            ],
+                            spacing=0,
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                        ),
+                        badge,
+                    ],
+                    spacing=6,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                )
+            )
+        return ft.DataCell(
+            ft.Text(f"${precio_final:,.2f}")
+        )
+
     # Crea la celda de acciones de cada fila: muestra un indicador de stock
     # negativo (en rojo) si se excedió el stock, y un botón X para eliminar
     # el producto de la venta.
@@ -349,10 +410,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             ft.Text(str(p.get("unidad", "UND")))
                         ),
 
-                        # Columna 4: Precio unitario
-                        ft.DataCell(
-                            ft.Text(f"${p.get('precio', 0):,.2f}")
-                        ),
+                        # Columna 4: Precio unitario (con oferta si aplica)
+                        crear_celda_precio(p),
 
                         # Columna 5: Descuento (clickeable para editar)
                         ft.DataCell(
@@ -392,9 +451,6 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         if modo_consulta:
             return
 
-        # Obtener el stock actual del producto
-        stock_actual = producto.get("stock", 0)
-
         # Cantidad que el usuario quiere agregar
         cantidad = producto.get("cantidad", 1)
 
@@ -420,7 +476,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     )
                 ),
                     ft.DataCell(ft.Text(str(producto.get('unidad', 'UND')))),
-                    ft.DataCell(ft.Text(f"${producto.get('precio', 0):,.2f}")),
+                    crear_celda_precio(producto),
                     ft.DataCell(
                         ft.TextButton(
                             content=ft.Text(f"{producto.get('descuento', 0):,.2f}%"),
@@ -470,7 +526,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             pago=pago,
             productos=productos,
             cliente=cliente_actual,
-            usuario=usuario
+            usuario=usuario,
+            id_apartado=apartado_actual
         )
 
         if not resultado:
@@ -508,7 +565,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog = metodo_pago_view(
             pagina,
             total_valor,
-            confirmar_factura
+            confirmar_factura,
+            productos=productos
         )
 
         # Abrir dialogo como overlay sobre la vista actual
@@ -524,10 +582,14 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nonlocal modo_consulta
         nonlocal id_factura_actual
         nonlocal cliente_actual
+        nonlocal apartado_actual
 
         # Vaciar la lista de productos y el cliente seleccionado
         productos = []
         cliente_actual = None
+
+        # Reiniciar la entrega de apartado (venta directa de pasillo)
+        apartado_actual = None
 
         # Limpiar todas las filas de la tabla
         tabla_productos.rows.clear()
@@ -540,7 +602,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         usuarioFactura.visible = False
         texto_fecha.value = ""
         texto_fecha.visible = False
-        notaFactura.value = ""
+        notaFactura.controls.clear()
         notaFactura.visible = False
 
         # Resetear el número de factura a "Nueva"
@@ -598,7 +660,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         )
                     ),
                     ft.DataCell(ft.Text(producto["unidad"])),
-                    ft.DataCell(ft.Text(f"${producto['precio']:,.2f}")),
+                    crear_celda_precio(producto),
                     ft.DataCell(ft.Text(f"{producto.get('descuento', 0):,.2f}%")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
                     ft.DataCell(ft.Text(producto["lugar"])),
@@ -616,10 +678,18 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         )
         usuarioFactura.visible = True
 
-        # Mostrar notas si existen
-        notas = (factura.get("notas") or "").strip()
-        notaFactura.value = f"Nota: {notas}"
-        notaFactura.visible = bool(notas)
+        # Mostrar notas si existen (una por empresa si aplica)
+        notas_empresa = factura.get("notas_empresa") or {}
+        notaFactura.controls.clear()
+        if notas_empresa:
+            notaFactura.controls.append(
+                ft.Text("Notas:", size=13, weight="bold")
+            )
+            for empresa, texto in notas_empresa.items():
+                notaFactura.controls.append(
+                    ft.Text(f"{empresa}: {texto}", size=13)
+                )
+            notaFactura.visible = True
 
         # Mostrar número de factura con color según estado
         if datos["factura"]["estado"] == "ANULADA":
@@ -830,16 +900,78 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         dialog.open = True
         pagina.update()
 
+    # ------------------------------------------------------------------
+    # ENTREGA DE APARTADO WEB (F9)
+    # ------------------------------------------------------------------
+    # Abre el diálogo que lista los apartados web pendientes. Al seleccionar
+    # uno, se precarga el producto reservado en la venta y se asocia el
+    # apartado a la factura. Al facturar, no se descuenta limite_venta y el
+    # apartado pasa a 'entregado'.
+    def entregar_apartado():
+
+        # No permitir entregar apartados en modo consulta
+        if modo_consulta:
+            return
+
+        dialog = entregar_apartado_view(pagina, seleccionar_apartado)
+        pagina.overlay.append(dialog)
+        dialog.open = True
+        pagina.update()
+
+    # Callback que se ejecuta al elegir un apartado en el diálogo (F9).
+    # Precarga el producto reservado en la venta con la cantidad (en unidades)
+    # que el cliente apartó en línea, y muestra el cliente en su campo.
+    def seleccionar_apartado(apartado):
+        nonlocal apartado_actual
+
+        id_apartado = apartado.get('id_apartado')
+        cantidad = apartado.get('cantidad', 1)
+        id_producto = apartado.get('id_producto')
+        nombre_producto = apartado.get('nombre', 'Sin nombre')
+        nombre_cliente = apartado.get('nombre_cliente', 'Cliente')
+
+        # Armo el producto a partir del apartado con la cantidad reservada.
+        # La cantidad ya viene en unidades (la web convierte cubetas x30).
+        # 'precio_aplicado' es el precio unitario real (CON descuento) que el
+        # cliente pagó/apartó en la web; se respeta tal cual al facturar.
+        precio_aplicado = apartado.get('precio_aplicado')
+        producto = {
+            'id': id_producto,
+            'id_producto': id_producto,
+            'codigo': apartado.get('codigo', '-'),
+            'nombre': nombre_producto,
+            'unidad': apartado.get('unidad', 'UND'),
+            'precio': float(precio_aplicado if precio_aplicado is not None else apartado.get('precio', 0)),
+            'precio_aplicado': precio_aplicado,
+            'cantidad': cantidad,
+            'stock': 0,
+            'descuento': 0,
+            'subtotal': float(cantidad) * float(precio_aplicado if precio_aplicado is not None else apartado.get('precio', 0)),
+            # Marca que esta línea es el producto reservado del apartado web.
+            # Se usa al facturar para saber que NO debe descontarse limite_venta
+            # (ya se restó en la web) y que su cantidad va en unidades.
+            'es_apartado': True,
+        }
+
+        # Precargo el producto reservado en la tabla de la venta
+        agregar_producto_a_tabla(producto)
+
+        # Asocio el apartado a la factura actual y muestro el cliente del
+        # apartado en el campo de cliente seleccionado.
+        apartado_actual = id_apartado
+        nombreCliente.value = f"{nombre_cliente} - Apartado"
+        pagina.update()
+
+        mostrar_notificacion(
+            pagina,
+            f"Apartado #{id_apartado} cargado. Al facturar no se descuenta\n"
+            "el límite de venta y el apartado pasa a 'entregado'."
+        )
+
     # Abre el diálogo de creación rápida de productos o clientes (F8).
     # Muestra un menú con opciones "CrearP" (producto) y "CrearU" (usuario).
     def crearP_C():
-        def on_crear(opcion):
-            if opcion == "CrearP":
-                print("Abrir crear producto")
-            elif opcion == "CrearU":
-                print("Abrir crear usuario") 
-
-        dialog = Crear(pagina, on_crear)
+        dialog = Crear(pagina, lambda _opcion: None)
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
@@ -887,6 +1019,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         elif e.key == "F8":
             crearP_C()
 
+        # F9 → Entregar apartado web
+        elif e.key == "F9":
+            entregar_apartado()
+
 
     # ---------------- BOTONES ----------------
 
@@ -933,10 +1069,23 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     )
     
     # Botón para abrir diálogo de creación de productos/clientes (atajo: F8)
-    btn_registar_cliente = ft.Button(
+    btn_registrar_cliente = ft.Button(
         "Crear P/C [F8]",
         on_click=lambda _: crearP_C(),
         width=190,
+        height=40,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            text_style=ft.TextStyle(size=15, weight="bold")
+        )
+    )
+
+    # Botón para entregar un apartado web (atajo: F9).
+    # Abre el diálogo con los apartados pendientes para precargarlo en la venta.
+    btn_entregar_apartado = ft.Button(
+        "Apartado [F9]",
+        on_click=lambda _: entregar_apartado(),
+        width=180,
         height=40,
         style=ft.ButtonStyle(
             shape=ft.RoundedRectangleBorder(radius=10),
@@ -1054,13 +1203,14 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ),
 
                 # Fila de botones principales: nueva factura, buscar producto,
-                # buscar cliente, crear producto/cliente
+                # buscar cliente, crear producto/cliente, entregar apartado
                 ft.Row(
                     [
                         btn_nueva_factura,
                         btn_buscar_producto,
                         btn_buscar_cliente,
-                        btn_registar_cliente
+                        btn_registrar_cliente,
+                        btn_entregar_apartado
                     ],
                     spacing=5
                 ),

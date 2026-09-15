@@ -21,7 +21,6 @@ Navegación:
     ir_a_menu(usuario) -> Vuelve al menú principal.
 """
 
-"""Pantalla para modificar facturas de venta, compra y remisión."""
 from datetime import datetime
 import flet as ft
 

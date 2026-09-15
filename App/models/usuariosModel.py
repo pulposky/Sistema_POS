@@ -8,6 +8,9 @@ que determina sus permisos dentro del sistema (administrador, vendedor, etc.).
 # Importa la función de conexión a la base de datos MySQL
 from database.bd import conectar
 
+# Librería para hashear contraseñas de forma segura
+import bcrypt
+
 # Modelo para gestionar usuarios del sistema.
 
 #=====================================================
@@ -37,12 +40,19 @@ def crear_usuario(nombre, usuario, password, rol):
     # ejecutar el INSERT y obtener el ID generado
     cursor = conexion.cursor()
 
+    # Hashea la contraseña en texto plano antes de guardarla.
+    # bcrypt añade una sal aleatoria, por lo que aunque dos usuarios tengan
+    # la misma contraseña, sus hashes serán distintos. La contraseña nunca
+    # se almacena en texto plano en la base de datos.
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
     # Consulta SQL de inserción con placeholders %s para los valores
     # Inserta los cuatro campos requeridos: nombre, usuario, password y rol
     sql = "INSERT INTO usuarios (nombre, usuario, password, rol) VALUES (%s, %s, %s, %s)"
 
     # Tupla con los valores que reemplazarán los %s en la consulta SQL
-    valores = (nombre, usuario, password, rol)
+    # Se guarda el hash en lugar de la contraseña en texto plano
+    valores = (nombre, usuario, password_hash, rol)
 
     # Ejecuta la consulta INSERT en la base de datos
     cursor.execute(sql, valores)

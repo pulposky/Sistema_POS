@@ -55,7 +55,8 @@ def pintar_documentos(tabla_documentos, cantidad_documentos, documentos):
                     ft.DataCell(ft.Text(str(doc["tercero"] or "-"))),
                     ft.DataCell(ft.Text(str(doc["usuario"] or "-"))),
                     ft.DataCell(ft.Text(f"${float(doc['total']):,.0f}")),
-                    ft.DataCell(ft.Text(str(doc.get("productos", "-"))))
+                    ft.DataCell(ft.Text(str(doc.get("productos", "-")))),
+                    ft.DataCell(ft.Text(str(doc.get("notas", "-")))),
                 ]
             )
         )
