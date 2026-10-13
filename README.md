@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="App/assets/Logo_sena.png" alt="Sistema POS SenaEmpresa" width="220">
-</p>
-
-<h1 align="center">🖥️ Sistema POS SenaEmpresa</h1>
+<h1 align="center">🖥️ Sistema POS</h1>
 <h3 align="center">Punto de venta, compras, remisiones e inventario en tiempo real</h3>
 
 <p align="center">
@@ -23,7 +19,7 @@
 
 ## 📑 Tabla de Contenidos
 
-- [✨ ¿Qué es SenaEmpresa POS?](#-qué-es-senaempresa-pos)
+- [✨ ¿Qué es este sistema?](#-qué-es-este-sistema)
 - [💡 Beneficios](#-beneficios)
 - [🚀 Características principales](#-características-principales)
 - [🌐 Integración con el Marketplace Web](#-integración-con-el-marketplace-web)
@@ -40,9 +36,9 @@
 
 ---
 
-## ✨ ¿Qué es SenaEmpresa POS?
+## ✨ ¿Qué es este sistema?
 
-**SenaEmpresa** es un sistema integral de **Punto de Venta (POS), gestión de compras,
+Es un sistema integral de **Punto de Venta (POS), gestión de compras,
 emisión de remisiones y control de inventario en tiempo real**. Fue construido en
 **Python** con **Flet** para ofrecer una interfaz moderna de escritorio y **MySQL**
 como motor de datos.
@@ -120,9 +116,9 @@ inventario y los clientes se mantienen **sincronizados** entre el mostrador y la
 
 ## 🌐 Integración con el Marketplace Web
 
-SenaEmpresa POS se conecta con el **[Marketplace Web](https://github.com/pulposky/Marketplace)**
+Este sistema se conecta con el **[Marketplace Web](https://github.com/pulposky/Marketplace)**
 (Node.js + Express + EJS), una plataforma de **reserva en línea** de productos agrícolas
-y procesados. Ambos sistemas **comparten la misma base de datos MySQL** (`sena_pdv`),
+y procesados. Ambos sistemas **comparten la misma base de datos MySQL** (`pos_db`),
 lo que permite sincronizar inventario y clientes entre el canal en línea y las
 transacciones presenciales.
 
@@ -269,7 +265,7 @@ cd Sistema_POS
 1. Inicia tu servidor MySQL (Laragon o XAMPP).
 2. Abre phpMyAdmin en tu navegador (`http://localhost/phpmyadmin`).
 3. Importa el archivo `App/database/database.sql` (pestaña **Importar**). Este archivo crea:
-   - La base de datos `sena_pdv`.
+   - La base de datos `pos_db`.
    - Todas las tablas con sus llaves primarias y foráneas.
    - Un usuario administrador inicial (`admin` / `admin123`) y el cliente general.
 4. Verifica las credenciales de conexión en `App/database/bd.py`:
@@ -279,7 +275,7 @@ cd Sistema_POS
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")  # Laragon: vacío | XAMPP: vacío por defecto
-DB_NAME = os.getenv("DB_NAME", "sena_pdv")
+DB_NAME = os.getenv("DB_NAME", "pos_db")
 DB_PORT = int(os.getenv("DB_PORT", "3306"))  # Ambos usan 3306 por defecto
 ```
 
@@ -289,7 +285,7 @@ DB_PORT = int(os.getenv("DB_PORT", "3306"))  # Ambos usan 3306 por defecto
 > DB_HOST=localhost
 > DB_USER=root
 > DB_PASSWORD=tu_contraseña
-> DB_NAME=sena_pdv
+> DB_NAME=pos_db
 > DB_PORT=3306
 > ```
 
@@ -370,7 +366,7 @@ Desde la pantalla de bienvenida, el botón **"Soporte"** permite descargar:
 | Problema | Causa posible | Solución |
 | :--- | :--- | :--- |
 | `Error de conexión a la base de datos: 2003 ... Can't connect to MySQL server` | MySQL no está corriendo | Inicia el servicio MySQL (Laragon/XAMPP) y verifica que nada más use el puerto 3306. |
-| `Error de conexión: Unknown database 'sena_pdv'` | La base de datos no fue creada | Importa `App/database/database.sql` en phpMyAdmin. |
+| `Error de conexión: Unknown database 'pos_db'` | La base de datos no fue creada | Importa `App/database/database.sql` en phpMyAdmin. |
 | `Access denied for user 'root'@'localhost'` | La contraseña de root no coincide | Actualiza `DB_PASSWORD` en `bd.py` o crea el archivo `.env`. |
 | `Puerto 3306 en uso` | Laragon y XAMPP corriendo a la vez | Detén uno de los dos; solo puede haber un MySQL en el puerto 3306. |
 | `Script Execution Disabled` (PowerShell) | Política de ejecución restringida | `Set-ExecutionPolicy Unrestricted -Scope Process` y reactiva el entorno. |
