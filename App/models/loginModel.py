@@ -84,3 +84,60 @@ def iniciar_sesion(usuario, password):
     # Si las credenciales son correctas, retorna un diccionario con los
     # datos del usuario. Si son incorrectas, retorna None
     return resultado
+
+
+# Verifica si una contraseña corresponde a algún administrador del sistema.
+# Se usa cuando un Aprendiz quiere desbloquear una función reservada a los
+# administradores (por ejemplo: Entradas, Nuevo Usuario o Actualizar Facturas)
+# y debe ingresar la contraseña del admin para poder continuar.
+def verificar_password_admin(password):
+    """
+    Valida que la contraseña ingresada pertenezca a un usuario administrador.
+
+    La comparación se hace igual que en iniciar_sesion: la contraseña se
+    almacena hasheada con bcrypt, por lo que se comparan los hashes y nunca
+    el texto plano.
+
+    Parámetros:
+        password (str): Contraseña ingresada por el usuario (texto plano).
+
+    Retorna:
+        bool: True si la contraseña coincide con la de al menos un usuario con
+        rol 'Admin' o 'Administrador'; False en caso contrario.
+    """
+
+    # Sin contraseña no hay nada que validar
+    if not password:
+        return False
+
+    # Conecto a la base de datos
+    conexion = conectar()
+    if conexion is None:
+        return False
+
+    # Cursor tipo diccionario para leer la columna 'password' por nombre
+    cursor = conexion.cursor(dictionary=True)
+
+    # Traigo el hash de todos los usuarios administradores del sistema
+    sql = "SELECT password FROM usuarios WHERE rol IN (%s, %s)"
+    cursor.execute(sql, ("Admin", "Administrador"))
+
+    administradores = cursor.fetchall()
+
+    cursor.close()
+    conexion.close()
+
+    # Comparo la contraseña ingresada contra el hash de cada administrador
+    for admin in administradores:
+        try:
+            if bcrypt.checkpw(
+                password.encode('utf-8'),
+                admin['password'].encode('utf-8')
+            ):
+                return True
+        except ValueError:
+            # Si el hash guardado no es válido, ignoro ese registro
+            continue
+
+    # No coincidió con ningún administrador
+    return False

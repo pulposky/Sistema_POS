@@ -9,6 +9,9 @@ La visibilidad de los botones se controla según el rol del usuario:
   - Admin / Administrador: acceso total.
   - Consultas: solo puede ver facturas (botón de consulta deshabilitado en menú,
     pero se accede desde aquí si tiene permiso; todos los demás deshabilitados).
+  - Aprendiz: las funciones reservadas a administradores (Entradas, Nuevo Usuario
+    y Actualizar Facturas) quedan habilitadas, pero al pulsarlas se solicita la
+    contraseña de un administrador. Si es correcta, se accede; si no, no pasa nada.
   - Cualquier otro rol: no puede crear usuarios, registrar entradas ni actualizar facturas.
 
 Atajos de teclado:
@@ -22,6 +25,8 @@ Navegación:
 """
 
 import flet as ft
+
+from utils.solicitarAdmin import solicitar_password_admin
 
 # Vista del menú principal.
 # Desde aquí se accede a ventas, compras, remisiones y otras opciones.
@@ -189,10 +194,54 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
     #   - Nuevo Usuario [5]
     #   - Entradas [4]
     #   - Actualizar Facturas [7]
-    if usuario.get("rol", "") not in {"Admin", "Administrador"}:
-        botones[5].disabled = True  # Nuevo Usuario
-        botones[4].disabled = True  # Entradas
-        botones[7].disabled = True  # Actualizar Facturas
+    #
+    # Excepcion: el rol "Aprendiz" puede intentar entrar a estas funciones
+    # escribiendo la contrasena de un administrador. En ese caso el boton queda
+    # habilitado y al pulsarlo se pide la contrasena antes de navegar.
+    rol_actual = usuario.get("rol", "")
+    es_admin = rol_actual in {"Admin", "Administrador"}
+
+    def pedir_password_y_abrir(accion):
+        """
+        Envuelve la accion de un boton restringido para exigir la contrasena
+        de un administrador antes de ejecutarla.
+
+        Parametros:
+            accion (callable): Funcion que navega a la vista restringida.
+                               Recibe el evento del clic.
+
+        Retorna:
+            callable: Manejador de clic que primero abre el dialogo de
+            contrasena y solo navega si el usuario se autentica como admin.
+        """
+        def manejador(e):
+            # Callback que recibe el resultado del dialogo de contrasena
+            def al_validar(autorizado):
+                if autorizado:
+                    accion(e)
+
+            # Abro el dialogo modal que solicita la contrasena del admin
+            dialogo = solicitar_password_admin(pagina, al_validar)
+            pagina.overlay.append(dialogo)
+            dialogo.open = True
+            pagina.update()
+
+        return manejador
+
+    if not es_admin:
+        if rol_actual == "Aprendiz":
+            # El Aprendiz accede con la contrasena de un administrador
+            botones[4].on_click = pedir_password_y_abrir(abrir_entradas)
+            botones[5].on_click = pedir_password_y_abrir(abrir_nuevo_usuario)
+            botones[7].on_click = pedir_password_y_abrir(actualizar_facturas)
+            # Aviso con tooltip que la opcion requiere contrasena de admin
+            botones[4].tooltip = "Requiere contrasena de administrador"
+            botones[5].tooltip = "Requiere contrasena de administrador"
+            botones[7].tooltip = "Requiere contrasena de administrador"
+        else:
+            botones[5].disabled = True  # Nuevo Usuario
+            botones[4].disabled = True  # Entradas
+            botones[7].disabled = True  # Actualizar Facturas
 
     # Si el rol es "Consultas", solo puede ver facturas; todo lo demás se deshabilita
     if usuario.get("rol", "") == "Consultas":
