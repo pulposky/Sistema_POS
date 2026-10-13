@@ -289,6 +289,9 @@ DB_PORT = int(os.getenv("DB_PORT", "3306"))  # Ambos usan 3306 por defecto
 > DB_PORT=3306
 > ```
 
+> 📝 El nombre de la base de datos (`pos_db`) es configurable: debes usar **el mismo**
+> nombre en tu `App/database/database.sql`, en `bd.py` y en tu archivo `.env`.
+
 ### 3️⃣ Crear el Entorno Virtual e Instalar Dependencias
 
 **Windows (PowerShell):**
@@ -321,7 +324,7 @@ python App/main.py
 
 Para distribuir el sistema sin que el usuario final instale Python, el proyecto incluye
 el archivo `App/main.spec` con la configuración de **PyInstaller**. El ejecutable se
-genera con el nombre **`SenaEmpresa`**.
+genera a partir de ese archivo (puedes ajustar su nombre dentro de `main.spec`).
 
 ```bash
 pip install pyinstaller
