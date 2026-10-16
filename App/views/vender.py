@@ -5,6 +5,7 @@ from utils.buscarProducto import buscar_producto_view
 from utils.buscarCliente import buscar_cliente_view
 from utils.entregarApartado import entregar_apartado_view
 from controllers import ventasController as ventas_controller
+from utils.roles import es_facturador
 from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
@@ -164,7 +165,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def editar_descuento(index):
 
         # Bloquear edición si es Aprendiz en modo consulta
-        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+        if modo_consulta and es_facturador(usuario.get("rol")):
             return
 
         producto = productos[index]
@@ -215,7 +216,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def editar_cantidad(index):
 
         # Bloquear edición si es Aprendiz en modo consulta
-        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+        if modo_consulta and es_facturador(usuario.get("rol")):
             return
 
         producto = productos[index]
@@ -814,7 +815,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------------
         else:
             # Los Aprendices no tienen permisos para anular facturas
-            if usuario.get("rol", "") == "Aprendiz":
+            if es_facturador(usuario.get("rol")):
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular facturas"

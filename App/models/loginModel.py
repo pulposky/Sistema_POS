@@ -7,6 +7,7 @@ que el nombre de usuario y la contraseña coincidan con un registro existente.
 
 # Importa la función de conexión a la base de datos MySQL
 from database.bd import conectar
+from utils.roles import puede_ingresar
 
 # Librería para verificar contraseñas hasheadas
 import bcrypt
@@ -78,6 +79,11 @@ def iniciar_sesion(usuario, password):
 
     # Si la contraseña es incorrecta, retorno None
     if not password_valida:
+        return None
+
+    # Credenciales válidas no bastan: solo Administrador y Facturador
+    # tienen permitido iniciar sesión en esta aplicación.
+    if not puede_ingresar(resultado.get("rol")):
         return None
 
     # Retorno el usuario encontrado

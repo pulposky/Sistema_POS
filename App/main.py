@@ -24,6 +24,7 @@ from routers.navegacion import configurar_rutas
 
 # ---------------- BASE DE DATOS ----------------
 from database.bd import conectar
+from utils.roles import puede_ingresar, es_administrador
 
 
 def probar_conexion():
@@ -88,31 +89,38 @@ def main(pagina: ft.Page):
     # en JSON, para que la nueva ventana sepa quién está operando
     usuario_json = os.getenv("POS_USUARIO", "")
 
+    def usuario_autorizado_para_vista(usuario, vista_solicitada):
+        if not usuario or not puede_ingresar(usuario.get("rol")):
+            return False
+        if vista_solicitada in {"entrada", "entradas"}:
+            return es_administrador(usuario.get("rol"))
+        return True
+
     # Si viene una vista específica, la abro directamente en la nueva ventana
     # Cada bloque verifica que exista un usuario válido antes de navegar;
     # si no hay usuario, cae a la pantalla de inicio por seguridad
     if vista in {"factura", "venta", "vender"}:
         # Deserializo el JSON del usuario; si viene vacío, queda en None
         usuario = json.loads(usuario_json) if usuario_json else None
-        if usuario:
+        if usuario_autorizado_para_vista(usuario, vista):
             rutas["vender"](usuario)
         else:
             iniciar()
     elif vista in {"compra", "compras"}:
         usuario = json.loads(usuario_json) if usuario_json else None
-        if usuario:
+        if usuario_autorizado_para_vista(usuario, vista):
             rutas["compras"](usuario)
         else:
             iniciar()
     elif vista == "remision":
         usuario = json.loads(usuario_json) if usuario_json else None
-        if usuario:
+        if usuario_autorizado_para_vista(usuario, vista):
             rutas["remision"](usuario)
         else:
             iniciar()
     elif vista in {"entrada", "entradas"}:
         usuario = json.loads(usuario_json) if usuario_json else None
-        if usuario:
+        if usuario_autorizado_para_vista(usuario, vista):
             rutas["entradas"](usuario)
         else:
             iniciar()

@@ -4,6 +4,7 @@ import asyncio
 from utils.buscarProducto import buscar_producto_view
 from utils.buscarCliente import buscar_cliente_view
 from controllers import remisionController as remision_controller
+from utils.roles import es_facturador
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
 from utils.abrirNuevaVentana import abrir_nueva_instancia
@@ -408,7 +409,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def editar_cantidad(index):
 
         # Los Aprendices no pueden editar en modo consulta
-        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+        if modo_consulta and es_facturador(usuario.get("rol")):
             return
 
         producto = productos[index]
@@ -772,7 +773,7 @@ def remision(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------
         else:
             # Los Aprendices no tienen permisos para anular
-            if usuario.get("rol", "") == "Aprendiz":
+            if es_facturador(usuario.get("rol")):
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular remisiones"

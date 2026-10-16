@@ -31,6 +31,7 @@ from views.consultarFacturas import consultarFacturas
 from views.crearUsuario import nuevoUsuario
 from views.entradas import entradas_view
 from views.actualizarFacturas import actualizar_facturas_view
+from utils.roles import es_administrador
 
 
 # Función encargada de centralizar las rutas de la aplicación
@@ -173,7 +174,7 @@ def configurar_rutas(pagina):
             usuario       # Usuario logueado
         )
 
-    def ir_a_entradas(usuario):
+    def ir_a_entradas(usuario, admin_authorized=False):
         """
         Navega a la pantalla de entradas.
         Registra las entradas de mercancía al almacén, ya sea por
@@ -182,6 +183,9 @@ def configurar_rutas(pagina):
         Parámetros:
             usuario (dict): Datos del usuario que registra la entrada.
         """
+        if not es_administrador(usuario.get("rol")) and not admin_authorized:
+            ir_a_menu(usuario)
+            return
         entradas_view(pagina, ir_a_inicio, ir_a_menu, usuario)
 
     def ir_a_consultar_facturas(usuario):
@@ -200,7 +204,7 @@ def configurar_rutas(pagina):
             usuario       # Usuario logueado
         )
 
-    def ir_a_actualizar_facturas(usuario):
+    def ir_a_actualizar_facturas(usuario, admin_authorized=False):
         """
         Navega a la pantalla de actualización de facturas.
         Permite modificar facturas existentes (corregir errores,
@@ -213,9 +217,12 @@ def configurar_rutas(pagina):
         no ir_a_inicio, ya que se espera que el usuario siempre
         regrese al menú después de actualizar.
         """
+        if not es_administrador(usuario.get("rol")) and not admin_authorized:
+            ir_a_menu(usuario)
+            return
         actualizar_facturas_view(pagina, ir_a_menu, usuario)
 
-    def ir_a_nuevo_usuario(usuario):
+    def ir_a_nuevo_usuario(usuario, admin_authorized=False):
         """
         Navega a la pantalla de creación de usuarios.
         Permite registrar nuevos usuarios en el sistema con su
@@ -229,7 +236,8 @@ def configurar_rutas(pagina):
             pagina,
             ir_a_inicio,  # Volver al inicio
             ir_a_menu,    # Volver al menú principal
-            usuario       # Usuario administrador logueado
+            usuario,      # Usuario logueado
+            admin_authorized=admin_authorized
         )
 
     # Diccionario con las rutas principales para poder abrirlas desde otras partes del sistema

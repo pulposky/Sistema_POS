@@ -3,6 +3,7 @@ from datetime import datetime
 import asyncio
 from utils.buscarProducto import buscar_producto_view
 from controllers import comprasController as compras_controller
+from utils.roles import es_facturador
 from utils.metodoPago import metodo_pago_view
 from utils.crearP_C import Crear
 from utils.confirmacion import confirmar_view
@@ -143,7 +144,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def editar_cantidad(index):
 
         # Bloquear si es Aprendiz en modo consulta
-        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+        if modo_consulta and es_facturador(usuario.get("rol")):
             return
 
         producto = productos[index]
@@ -190,7 +191,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     def editar_descuento(index):
 
         # Bloquear si es Aprendiz en modo consulta
-        if modo_consulta and usuario.get("rol", "") == "Aprendiz":
+        if modo_consulta and es_facturador(usuario.get("rol")):
             return
 
         producto = productos[index]
@@ -229,12 +230,21 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         campo.on_submit = guardar
         pagina.update()
 
+    # Quita un producto individual de la compra actual y actualiza la tabla y los totales.
+    def eliminar_producto(index):
+        if modo_consulta:
+            return
+
+        productos.pop(index)
+        refrescar_tabla()
+        actualizar_totales()
+
     # Reconstruye todas las filas de la tabla de productos desde la lista.
     # Se usa después de agregar productos o para refrescar la vista completa.
     def refrescar_tabla():
         
         tabla_productos.rows.clear()
-        for p in productos:
+        for i, p in enumerate(productos):
             cantidad_texto = compras_controller.formatear_cantidad(p["cantidad"])
             tabla_productos.rows.append(
                 ft.DataRow(
@@ -247,7 +257,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         ft.DataCell(
                             ft.TextButton(
                                 content=ft.Text(cantidad_texto),
-                                on_click=lambda e, idx=productos.index(p): editar_cantidad(idx)
+                                on_click=lambda e, idx=i: editar_cantidad(idx)
                             )
                         ),
                         # Unidad de medida
@@ -258,13 +268,20 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         ft.DataCell(
                             ft.TextButton(
                                 content=ft.Text(f"${p.get('descuento', 0):,.2f}"),
-                                on_click=lambda e, idx=productos.index(p): editar_descuento(idx)
+                                on_click=lambda e, idx=i: editar_descuento(idx)
                             )
                         ),
                         # Subtotal del producto
                         ft.DataCell(ft.Text(f"${p.get('subtotal', 0):,.2f}")),
                         # Empresa/lugar del producto
-                        ft.DataCell(ft.Text(str(p.get('lugar', '-'))))
+                        ft.DataCell(ft.Text(str(p.get('lugar', '-')))),
+                        ft.DataCell(
+                            ft.IconButton(
+                                icon=ft.Icons.CLOSE,
+                                icon_color=ft.Colors.RED,
+                                on_click=lambda e, idx=i: eliminar_producto(idx)
+                            )
+                        )
                     ]
                 )
             )
@@ -423,7 +440,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         # Limpiar y reconstruir la tabla
         tabla_productos.rows.clear()
-        for producto in productos:
+        for i, producto in enumerate(productos):
             cantidad_texto = compras_controller.formatear_cantidad(producto["cantidad"])
             tabla_productos.rows.append(
                 ft.DataRow(cells=[
@@ -432,7 +449,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                 ft.DataCell(
                     ft.TextButton(
                         content=ft.Text(cantidad_texto),
-                        on_click=lambda e, idx=productos.index(producto): editar_cantidad(idx)
+                        on_click=lambda e, idx=i: editar_cantidad(idx)
                     )
                 ),
                     ft.DataCell(ft.Text(producto["unidad"])),
@@ -440,12 +457,18 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                     ft.DataCell(
                         ft.TextButton(
                             content=ft.Text(f"{producto.get('descuento', 0):,.2f}%"),
-                            on_click=lambda e, idx=productos.index(producto): editar_descuento(idx)
+                            on_click=lambda e, idx=i: editar_descuento(idx)
                         )
                     ),
-                    ft.DataCell(ft.Text(f"{producto.get('descuento', 0):,.2f}%")),
                     ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}")),
-                    ft.DataCell(ft.Text(producto["lugar"]))
+                    ft.DataCell(ft.Text(producto["lugar"])),
+                    ft.DataCell(
+                        ft.IconButton(
+                            icon=ft.Icons.CLOSE,
+                            icon_color=ft.Colors.RED,
+                            on_click=lambda e, idx=i: eliminar_producto(idx)
+                        )
+                    )
                 ])
             )
 
@@ -566,7 +589,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         # -----------------------------
         else:
             # Los Aprendices no tienen permisos para anular
-            if usuario.get("rol", "") == "Aprendiz":
+            if es_facturador(usuario.get("rol")):
                 snack = ft.SnackBar(
                     content=ft.Text(
                         "No tienes permisos para anular compras"
@@ -805,7 +828,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
     # Tabla principal de productos de la compra.
     # Columnas: Codigo, Producto, Cantidad (editable), Unidad,
-    #           Precio unitario, Descuento (editable), Subtotal, Empresa.
+    #           Precio unitario, Descuento (editable), Subtotal, Empresa, quitar.
     tabla_productos = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Codigo")),
@@ -816,9 +839,7 @@ def compras_view(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Descuento")),
             ft.DataColumn(ft.Text("Subtotal")),
             ft.DataColumn(ft.Text("Empresa")),
-
-            ft.DataColumn(ft.Text("Empresa")),
-
+            ft.DataColumn(ft.Text("")),
         ],
         rows=[],
         border=ft.Border.all(1, ft.Colors.BLACK),

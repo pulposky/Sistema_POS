@@ -7,12 +7,9 @@ Consultar Facturas, Actualizar Facturas y Cerrar Sesión.
 
 La visibilidad de los botones se controla según el rol del usuario:
   - Admin / Administrador: acceso total.
-  - Consultas: solo puede ver facturas (botón de consulta deshabilitado en menú,
-    pero se accede desde aquí si tiene permiso; todos los demás deshabilitados).
-  - Aprendiz: las funciones reservadas a administradores (Entradas, Nuevo Usuario
-    y Actualizar Facturas) quedan habilitadas, pero al pulsarlas se solicita la
-    contraseña de un administrador. Si es correcta, se accede; si no, no pasa nada.
-  - Cualquier otro rol: no puede crear usuarios, registrar entradas ni actualizar facturas.
+  - Facturador: puede usar las operaciones habituales, pero no las funciones
+    administrativas (Entradas, Nuevo Usuario y Actualizar Facturas).
+  - Cualquier otro rol: no puede entrar al menú.
 
 Atajos de teclado:
     ArrowDown  -> Mueve la selección al siguiente botón.
@@ -26,6 +23,7 @@ Navegación:
 
 import flet as ft
 
+from utils.roles import es_administrador, puede_ingresar
 from utils.solicitarAdmin import solicitar_password_admin
 
 # Vista del menú principal.
@@ -53,6 +51,11 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     # Limpio la pantalla
     pagina.clean()
+
+    # El menú también falla de forma segura si se invoca sin pasar por login.
+    if not puede_ingresar(usuario.get("rol")):
+        ir_a_main()
+        return
 
     # Centro todo el contenido
     pagina.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -94,10 +97,34 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
     def actualizar_facturas(e):
         ir_a_actualizar_facturas(usuario)
+
+    def con_autorizacion_admin(accion):
+        """Pide clave de administrador antes de abrir una función restringida."""
+        def manejar(e):
+            def al_validar(autorizado):
+                if autorizado:
+                    accion()
+
+            dialogo = solicitar_password_admin(pagina, al_validar)
+            pagina.overlay.append(dialogo)
+            dialogo.open = True
+            pagina.update()
+        return manejar
+
+    def entradas_autorizadas():
+        ir_a_entradas(usuario, admin_authorized=True)
+
+    def nuevo_usuario_autorizado():
+        ir_a_nuevo_usuario(usuario, admin_authorized=True)
+
+    def actualizar_autorizadas():
+        ir_a_actualizar_facturas(usuario, admin_authorized=True)
         
     def cerrar_sesion():
         """Vuelve a la pantalla de bienvenida (inicio_view) limpiando la sesión."""
         ir_a_main()
+
+    rol_actual = usuario.get("rol", "")
 
     # ---------------- BOTONES ----------------
 
@@ -190,68 +217,30 @@ def menu_view(pagina: ft.Page, ir_a_main, ir_a_vender, ir_a_remision, usuario, i
 
 
     # validacion de rol para los botones de menu
-    # Si el usuario NO es admin ni administrador, deshabilito funciones restringidas:
+    # Si el usuario no es administrador, deshabilito funciones restringidas:
     #   - Nuevo Usuario [5]
     #   - Entradas [4]
     #   - Actualizar Facturas [7]
     #
-    # Excepcion: el rol "Aprendiz" puede intentar entrar a estas funciones
-    # escribiendo la contrasena de un administrador. En ese caso el boton queda
-    # habilitado y al pulsarlo se pide la contrasena antes de navegar.
-    rol_actual = usuario.get("rol", "")
-    es_admin = rol_actual in {"Admin", "Administrador"}
-
-    def pedir_password_y_abrir(accion):
-        """
-        Envuelve la accion de un boton restringido para exigir la contrasena
-        de un administrador antes de ejecutarla.
-
-        Parametros:
-            accion (callable): Funcion que navega a la vista restringida.
-                               Recibe el evento del clic.
-
-        Retorna:
-            callable: Manejador de clic que primero abre el dialogo de
-            contrasena y solo navega si el usuario se autentica como admin.
-        """
-        def manejador(e):
-            # Callback que recibe el resultado del dialogo de contrasena
-            def al_validar(autorizado):
-                if autorizado:
-                    accion(e)
-
-            # Abro el dialogo modal que solicita la contrasena del admin
-            dialogo = solicitar_password_admin(pagina, al_validar)
-            pagina.overlay.append(dialogo)
-            dialogo.open = True
-            pagina.update()
-
-        return manejador
-
-    if not es_admin:
-        if rol_actual == "Aprendiz":
-            # El Aprendiz accede con la contrasena de un administrador
-            botones[4].on_click = pedir_password_y_abrir(abrir_entradas)
-            botones[5].on_click = pedir_password_y_abrir(abrir_nuevo_usuario)
-            botones[7].on_click = pedir_password_y_abrir(actualizar_facturas)
-            # Aviso con tooltip que la opcion requiere contrasena de admin
-            botones[4].tooltip = "Requiere contrasena de administrador"
-            botones[5].tooltip = "Requiere contrasena de administrador"
-            botones[7].tooltip = "Requiere contrasena de administrador"
-        else:
-            botones[5].disabled = True  # Nuevo Usuario
-            botones[4].disabled = True  # Entradas
-            botones[7].disabled = True  # Actualizar Facturas
-
-    # Si el rol es "Consultas", solo puede ver facturas; todo lo demás se deshabilita
-    if usuario.get("rol", "") == "Consultas":
-        botones[0].disabled = True  # Facturacion
-        botones[1].disabled = True  # Compras
-        botones[2].disabled = True  # Remision
-        botones[3].disabled = True  # Inventario
-        botones[4].disabled = True  # Entradas
-        botones[5].disabled = True  # Nuevo Usuario
-        botones[7].disabled = True  # Actualizar Facturas
+    if not es_administrador(rol_actual):
+        # Facturador puede acceder a estas funciones tras validar la clave admin.
+        botones[4].content = ft.Text("🔒 Entradas · clave admin")
+        botones[5].content = ft.Text("🔒 Nuevo Usuario · clave admin")
+        botones[7].content = ft.Text("🔒 Actualizar · clave admin")
+        for boton in (botones[4], botones[5], botones[7]):
+            boton.width = 300
+            boton.style = ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=10),
+                text_style=ft.TextStyle(size=15, weight="bold"),
+                bgcolor=ft.Colors.AMBER_100,
+                color=ft.Colors.BROWN_900,
+            )
+        botones[4].on_click = con_autorizacion_admin(entradas_autorizadas)
+        botones[5].on_click = con_autorizacion_admin(nuevo_usuario_autorizado)
+        botones[7].on_click = con_autorizacion_admin(actualizar_autorizadas)
+        botones[4].tooltip = "Requiere contraseña de administrador"
+        botones[5].tooltip = "Requiere contraseña de administrador"
+        botones[7].tooltip = "Requiere contraseña de administrador"
 
     # ---------------- TECLADO ----------------
 

@@ -2,8 +2,7 @@
 Vista para crear nuevos usuarios del sistema POS.
 
 Muestra un formulario con campos de nombre, usuario, contraseña y rol.
-La contraseña se deshabilita automáticamente cuando el rol es "Aprendiz" o
-"Consultas", asignándole el valor por defecto "APRENDIZ". Solo los usuarios
+La contraseña se solicita para todos los roles disponibles. Solo los usuarios
 con rol Admin o Administrador pueden acceder a esta vista (el acceso se
 controla desde el menú principal).
 
@@ -16,9 +15,10 @@ Navegación:
 import flet as ft
 from controllers import usuarioController
 from utils.notificaciones import mostrar_notificacion
+from utils.roles import es_administrador
 # Vista para crear usuarios desde la interfaz del sistema.
 
-def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
+def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario, admin_authorized=False):
     """
     Renderiza el formulario de creación de usuarios.
 
@@ -30,6 +30,10 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     """
     # Limpio la pantalla
     pagina.clean()
+
+    if not es_administrador(usuario.get("rol")) and not admin_authorized:
+        ir_a_menu(usuario)
+        return
 
     # ---------------- FUNCIONES ----------------
 
@@ -74,22 +78,17 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     def seleccionar_rol(e):
         """
         Callback del dropdown de rol.
-        Cuando se selecciona "Aprendiz" o "Consultas", se deshabilita el campo
-        de contraseña y se asigna el valor por defecto "APRENDIZ".
-        Para "Admin" se habilita el campo para que escriba la contraseña manualmente.
+        Ambos roles permitidos requieren contraseña propia.
         """
-        password.disabled = e.control.value in ["Aprendiz", "Consultas"]
-        if password.disabled:
-            password.value = "APRENDIZ"
+        password.disabled = False
         pagina.update()
 
-    # Dropdown de selección de rol con tres opciones
+    # Solo se pueden crear usuarios con roles autorizados por el sistema.
     rol = ft.Dropdown(
         label="Rol",
         options=[
             ft.dropdown.Option("Admin"),         # Acceso total al sistema
-            ft.dropdown.Option("Aprendiz"),       # Rol de aprendiz (sin permisos especiales)
-            ft.dropdown.Option("Consultas"),      # Solo puede consultar facturas
+            ft.dropdown.Option("Facturador"),    # Operación limitada, sin funciones administrativas
         ],
         value="Admin",                           # Valor por defecto
         on_select=seleccionar_rol,               # Se dispara al cambiar la selección
@@ -97,9 +96,7 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
     )
 
     # Estado inicial del campo de contraseña según el rol por defecto
-    password.disabled = rol.value in ["Aprendiz", "Consultas"]
-    if password.disabled:
-        password.value = "APRENDIZ"
+    password.disabled = False
 
 
     # ---------------- BOTONES ----------------
@@ -119,7 +116,7 @@ def nuevoUsuario(pagina, ir_a_inicio, ir_a_menu, usuario):
                 ft.Text("Crear Nuevo Usuario", style=ft.TextStyle(size=20, weight="bold")),
                 nombre,                           # Campo nombre
                 usuario_field,                    # Campo usuario
-                password,                         # Campo contraseña (deshabilitado para Aprendiz/Consultas)
+                password,                         # Contraseña del usuario nuevo
                 rol,                              # Selector de rol
                 ft.Row([boton_guardar, boton_cancelar], alignment=ft.MainAxisAlignment.CENTER),
             ],
