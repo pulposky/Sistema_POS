@@ -112,6 +112,24 @@ inventario y los clientes se mantienen **sincronizados** entre el mostrador y la
   (Entradas, Nuevo Usuario y Actualizar Facturas) solicitan la **contraseña de un
   administrador** antes de permitir el acceso.
 
+### 🛡️ Panel de Administración
+- **Protegido con contraseña de administrador:** se abre desde el botón
+  **"Administración"** de la pantalla de bienvenida, que pide la clave de un
+  administrador antes de mostrarlo.
+- **📊 Indicadores:** ventas y compras del día, remisiones, productos (activos
+  y con stock bajo), clientes, proveedores, usuarios por rol y últimas ventas.
+- **👥 Usuarios:** crear, editar (nombre, login y rol), cambiar contraseñas y
+  eliminar usuarios. Protecciones automáticas: no puedes eliminarte a ti mismo
+  ni dejar al sistema sin administradores.
+- **📦 Productos:** catálogo completo con búsqueda por código, nombre o
+  categoría; alta, edición (precio, stock, categoría, límite de venta web,
+  estado, descripción) y baja de productos.
+- **💾 Respaldo de la base de datos:** genera un archivo `.sql` con
+  `mysqldump` (busca automáticamente la versión compatible con tu MySQL:
+  Laragon, XAMPP o la indicada en la variable `MYSQLDUMP_PATH`).
+- Se cierra con **"Cerrar sesión"** (o `Esc`) y regresa a la pantalla de
+  bienvenida para que los cajeros inicien sesión normalmente.
+
 ---
 
 ## 🌐 Integración con el Marketplace Web

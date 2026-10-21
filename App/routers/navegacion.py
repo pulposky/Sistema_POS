@@ -31,7 +31,9 @@ from views.consultarFacturas import consultarFacturas
 from views.crearUsuario import nuevoUsuario
 from views.entradas import entradas_view
 from views.actualizarFacturas import actualizar_facturas_view
+from views.adminPanel import admin_panel_view
 from utils.roles import es_administrador
+from utils.solicitarAdmin import solicitar_password_admin
 
 
 # Función encargada de centralizar las rutas de la aplicación
@@ -65,8 +67,29 @@ def configurar_rutas(pagina):
         """
         inicio_view(
             pagina,
-            ir_a_login  # Desde inicio solo se puede ir al login
+            ir_a_login,   # Desde inicio solo se puede ir al login...
+            ir_a_admin    # ...o al Panel de Administración (con clave admin)
         )
+
+    # -------- ADMINISTRACIÓN --------
+    def ir_a_admin():
+        """
+        Abre el Panel de Administración.
+
+        Antes de mostrar el panel se solicita la contraseña de un
+        administrador (diálogo modal). Si la contraseña es correcta se
+        abre el panel con los datos del admin autenticado; si se cancela
+        no ocurre nada y el usuario sigue en la pantalla de bienvenida.
+        """
+        def al_autorizar(admin):
+            """Se ejecuta al validar (dict) o cancelar (False) la contraseña."""
+            if admin:
+                admin_panel_view(pagina, ir_a_inicio, admin)
+
+        dialogo = solicitar_password_admin(pagina, al_autorizar)
+        pagina.overlay.append(dialogo)
+        dialogo.open = True
+        pagina.update()
 
     # -------- LOGIN --------
     def ir_a_login():
@@ -248,6 +271,7 @@ def configurar_rutas(pagina):
         "inicio": ir_a_inicio,
         "login": ir_a_login,
         "menu": ir_a_menu,
+        "admin": ir_a_admin,
         "vender": ir_a_vender,
         "remision": ir_a_remision,
         "compras": ir_a_compras,

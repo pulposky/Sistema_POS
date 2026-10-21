@@ -92,11 +92,11 @@ def iniciar_sesion(usuario, password):
     return resultado
 
 
-# Verifica si una contraseña corresponde a algún administrador del sistema.
-# Se usa cuando un Aprendiz quiere desbloquear una función reservada a los
-# administradores (por ejemplo: Entradas, Nuevo Usuario o Actualizar Facturas)
-# y debe ingresar la contraseña del admin para poder continuar.
-def verificar_password_admin(password):
+# Autentica a un administrador a partir de su contraseña.
+# Se usa cuando alguien quiere entrar a una función reservada a los
+# administradores (por ejemplo: Entradas, Nuevo Usuario, Actualizar Facturas
+# o el Panel de Administración) y debe ingresar la contraseña del admin.
+def autenticar_admin(password):
     """
     Valida que la contraseña ingresada pertenezca a un usuario administrador.
 
@@ -108,24 +108,26 @@ def verificar_password_admin(password):
         password (str): Contraseña ingresada por el usuario (texto plano).
 
     Retorna:
-        bool: True si la contraseña coincide con la de al menos un usuario con
-        rol 'Admin' o 'Administrador'; False en caso contrario.
+        dict o None: Diccionario con los datos del administrador autenticado
+        (id_usuario, nombre, usuario, rol) si la contraseña coincide con la
+        de al menos un usuario con rol 'Admin' o 'Administrador'; None en
+        caso contrario.
     """
 
     # Sin contraseña no hay nada que validar
     if not password:
-        return False
+        return None
 
     # Conecto a la base de datos
     conexion = conectar()
     if conexion is None:
-        return False
+        return None
 
-    # Cursor tipo diccionario para leer la columna 'password' por nombre
+    # Cursor tipo diccionario para leer las columnas por nombre
     cursor = conexion.cursor(dictionary=True)
 
-    # Traigo el hash de todos los usuarios administradores del sistema
-    sql = "SELECT password FROM usuarios WHERE rol IN (%s, %s)"
+    # Traigo los datos de todos los usuarios administradores del sistema
+    sql = "SELECT id_usuario, nombre, usuario, rol, password FROM usuarios WHERE rol IN (%s, %s)"
     cursor.execute(sql, ("Admin", "Administrador"))
 
     administradores = cursor.fetchall()
@@ -140,10 +142,29 @@ def verificar_password_admin(password):
                 password.encode('utf-8'),
                 admin['password'].encode('utf-8')
             ):
-                return True
+                # Elimino el hash antes de retornar: la contraseña cifrada
+                # no debe viajar por la aplicación ni quedar en memoria
+                admin.pop('password', None)
+                return admin
         except ValueError:
             # Si el hash guardado no es válido, ignoro ese registro
             continue
 
     # No coincidió con ningún administrador
-    return False
+    return None
+
+
+# Verifica si una contraseña corresponde a algún administrador del sistema.
+# Es simplemente la versión booleana de autenticar_admin().
+def verificar_password_admin(password):
+    """
+    Valida que la contraseña ingresada pertenezca a un usuario administrador.
+
+    Parámetros:
+        password (str): Contraseña ingresada por el usuario (texto plano).
+
+    Retorna:
+        bool: True si la contraseña coincide con la de al menos un usuario con
+        rol 'Admin' o 'Administrador'; False en caso contrario.
+    """
+    return autenticar_admin(password) is not None

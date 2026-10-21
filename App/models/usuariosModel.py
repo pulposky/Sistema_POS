@@ -40,6 +40,15 @@ def crear_usuario(nombre, usuario, password, rol):
     # ejecutar el INSERT y obtener el ID generado
     cursor = conexion.cursor()
 
+    # Verifico que el nombre de login no esté tomado por otro usuario.
+    # Aunque la columna 'usuario' es UNIQUE en el esquema, no todas las
+    # bases instaladas conservan esa restricción, así que se valida aquí.
+    cursor.execute("SELECT id_usuario FROM usuarios WHERE usuario = %s", (usuario,))
+    if cursor.fetchone():
+        cursor.close()
+        conexion.close()
+        raise ValueError(f"Ya existe un usuario con el login '{usuario}'.")
+
     # Hashea la contraseña en texto plano antes de guardarla.
     # bcrypt añade una sal aleatoria, por lo que aunque dos usuarios tengan
     # la misma contraseña, sus hashes serán distintos. La contraseña nunca

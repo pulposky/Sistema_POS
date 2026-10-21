@@ -2,8 +2,10 @@
 Vista de bienvenida / pantalla de inicio del sistema POS.
 
 Es la primera pantalla que ve el usuario al abrir la aplicación.
-Muestra dos botones principales:
+Muestra tres botones principales:
   - "SenaEmpresa": navega al formulario de login.
+  - "Administración": solicita la contraseña de un administrador y abre
+    el Panel de Administración (usuarios, productos, indicadores, respaldos).
   - "Soporte": abre un diálogo modal con opciones para descargar manuales
     (manual de usuario y manual técnico) desde la carpeta /docs del proyecto.
 
@@ -15,7 +17,9 @@ Atajos de teclado:
     ArrowUp   -> Mueve la selección al botón anterior.
 
 Navegación:
-    ir_a_login() -> Navega al formulario de login (login_view).
+    ir_a_login()   -> Navega al formulario de login (login_view).
+    ir_a_admin()   -> Abre el Panel de Administración (admin_panel_view),
+                      previa validación de la contraseña de un administrador.
 """
 
 import flet as ft
@@ -23,13 +27,15 @@ from pathlib import Path
 
 # Vista inicial del sistema antes de entrar al menú principal.
 # Vista inicial del sistema
-def inicio_view(pagina: ft.Page, ir_a_login):
+def inicio_view(pagina: ft.Page, ir_a_login, ir_a_admin):
     """
     Renderiza la pantalla de bienvenida con opciones de ingreso y soporte.
 
     Parámetros:
         pagina     -> Instancia de la página Flet.
         ir_a_login -> Callback para navegar al formulario de login.
+        ir_a_admin -> Callback para abrir el Panel de Administración
+                      (solicita la contraseña de un administrador).
     """
 
     # Ruta a la carpeta 'docs' del proyecto (un nivel arriba de views/)
@@ -59,6 +65,11 @@ def inicio_view(pagina: ft.Page, ir_a_login):
     # Navega al login cuando el usuario hace clic en "SenaEmpresa"
     def SenaEmpresa(e):
         ir_a_login()
+
+    # Abre el Panel de Administración cuando el usuario hace clic en
+    # "Administración" (previo pedido de la contraseña de un admin)
+    def abrir_administracion(e):
+        ir_a_admin()
 
     def mostrar_mensaje(mensaje, color=None):
         """
@@ -154,12 +165,25 @@ def inicio_view(pagina: ft.Page, ir_a_login):
         pagina.update()
 
     # ---------------- BOTONES ----------------
-    # Dos botones principales: ingreso al sistema y soporte/ayuda
+    # Tres botones principales: ingreso al sistema, panel de
+    # administración (protegido con contraseña de admin) y soporte/ayuda
     botones = [
         # Botón de ingreso: navega al login
         ft.Button(
             "SenaEmpresa",
             on_click=SenaEmpresa,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=10),
+                text_style=ft.TextStyle(size=15, weight="bold")
+            )
+        ),
+        # Botón de administración: pide la contraseña de un administrador
+        # y abre el panel para gestionar usuarios, productos y respaldos
+        ft.Button(
+            "Administración",
+            icon=ft.Icons.LOCK,
+            on_click=abrir_administracion,
+            tooltip="Requiere contraseña de administrador",
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=10),
                 text_style=ft.TextStyle(size=15, weight="bold")

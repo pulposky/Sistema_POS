@@ -1,20 +1,22 @@
 import flet as ft
 
-from models.loginModel import verificar_password_admin
+from models.loginModel import autenticar_admin
 
 # ============================================================================
 # MÓDULO DE SOLICITUD DE CONTRASEÑA DE ADMINISTRADOR
 # ============================================================================
 # Muestra un diálogo modal que pide la contraseña de un administrador antes de
 # permitir el acceso a una función restringida (por ejemplo, cuando un Aprendiz
-# quiere entrar a Entradas, Nuevo Usuario o Actualizar Facturas).
+# quiere entrar a Entradas, Nuevo Usuario o Actualizar Facturas, o cuando se
+# abre el Panel de Administración desde la pantalla de bienvenida).
 #
 # Si la contraseña coincide con la de algún administrador, el diálogo se cierra
-# y se notifica al callback con True. Si el usuario cancela (Escape o botón),
-# se notifica con False. Si la contraseña es incorrecta, se muestra el error y
-# el diálogo permanece abierto para reintentar.
+# y se notifica al callback con los datos del administrador autenticado (dict).
+# Si el usuario cancela (Escape o botón), se notifica con False. Si la
+# contraseña es incorrecta, se muestra el error y el diálogo permanece abierto
+# para reintentar.
 #
-# Uso típico (desde el menú principal):
+# Uso típico (desde el menú principal o desde el inicio):
 #   dialogo = solicitar_password_admin(pagina, mi_callback)
 #   pagina.overlay.append(dialogo)
 #   dialogo.open = True
@@ -28,8 +30,10 @@ def solicitar_password_admin(pagina: ft.Page, callback):
 
     Parámetros:
         pagina (ft.Page): Página de Flet donde se mostrará el diálogo.
-        callback (callable): Función que se ejecuta al terminar. Recibe un bool:
-            True si la contraseña fue correcta, False si el usuario canceló.
+        callback (callable): Función que se ejecuta al terminar. Recibe:
+            - dict: Datos del administrador autenticado (id_usuario, nombre,
+              usuario, rol) si la contraseña fue correcta.
+            - False: Si el usuario canceló el diálogo.
 
     Retorna:
         ft.AlertDialog: Componente de diálogo listo para mostrarse.
@@ -57,9 +61,10 @@ def solicitar_password_admin(pagina: ft.Page, callback):
             return
 
         # Comparo la contraseña contra la de cualquier administrador
-        if verificar_password_admin(campo_password.value):
+        admin = autenticar_admin(campo_password.value)
+        if admin:
             cerrar_dialogo()
-            callback(True)   # ← autorizado
+            callback(admin)   # ← autorizado (dict con los datos del admin)
         else:
             # Contraseña incorrecta: muestro error y dejo reintentar
             mensaje.value = "Contraseña de administrador incorrecta."
