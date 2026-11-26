@@ -323,7 +323,7 @@ def listar_productos(filtro=None):
         cursor = conexion.cursor(dictionary=True)
         sql = """
             SELECT id_producto, codigo, nombre, unidad, lugar, precio,
-                   categoria, stock, limite_venta, estado, descripcion
+                   categoria, stock, estado, descripcion
             FROM producto
         """
         valores = ()
@@ -345,7 +345,7 @@ def guardar_producto(datos, id_producto=None):
 
     Parámetros:
         datos (dict): Campos del producto (codigo, nombre, unidad, lugar,
-            precio, categoria, stock, limite_venta, estado, descripcion).
+            precio, categoria, stock, estado, descripcion).
         id_producto (int|None): Si se indica, se actualiza ese producto;
             si es None se crea uno nuevo.
 
@@ -382,7 +382,6 @@ def guardar_producto(datos, id_producto=None):
             datos["precio"],
             datos["categoria"],
             datos["stock"],
-            datos["limite_venta"],
             datos["estado"],
             datos["descripcion"],
         )
@@ -391,7 +390,7 @@ def guardar_producto(datos, id_producto=None):
             cursor.execute("""
                 UPDATE producto
                 SET codigo = %s, nombre = %s, unidad = %s, lugar = %s, precio = %s,
-                    categoria = %s, stock = %s, limite_venta = %s, estado = %s,
+                    categoria = %s, stock = %s, estado = %s,
                     descripcion = %s
                 WHERE id_producto = %s
             """, valores + (id_producto,))
@@ -401,8 +400,8 @@ def guardar_producto(datos, id_producto=None):
         cursor.execute("""
             INSERT INTO producto
                 (codigo, nombre, unidad, lugar, precio, categoria, stock,
-                 limite_venta, estado, descripcion)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 estado, descripcion)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, valores)
         conexion.commit()
         return cursor.lastrowid

@@ -70,7 +70,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Apartado web que se está entregando en esta factura.
     # None = venta directa de pasillo; int = id del apartado en entrega (F9).
     # Al entregarse, se precarga el producto reservado y al facturar NO se
-    # descuenta limite_venta (ya se restó en la web) y el apartado pasa a 'entregado'.
+    # descuenta su stock (ya lo hizo la tienda) y el apartado pasa a 'entregado'.
     apartado_actual = None
 
     # Lista de facturas cargadas desde la base de datos para navegación (F6/F7)
@@ -906,7 +906,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # ------------------------------------------------------------------
     # Abre el diálogo que lista los apartados web pendientes. Al seleccionar
     # uno, se precarga el producto reservado en la venta y se asocia el
-    # apartado a la factura. Al facturar, no se descuenta limite_venta y el
+    # apartado a la factura. Al facturar, no se descuenta su stock y el
     # apartado pasa a 'entregado'.
     def entregar_apartado():
 
@@ -949,8 +949,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             'descuento': 0,
             'subtotal': float(cantidad) * float(precio_aplicado if precio_aplicado is not None else apartado.get('precio', 0)),
             # Marca que esta línea es el producto reservado del apartado web.
-            # Se usa al facturar para saber que NO debe descontarse limite_venta
-            # (ya se restó en la web) y que su cantidad va en unidades.
+            # Se usa al facturar para saber que NO debe descontarse su stock
+            # (ya lo hizo la tienda) y que su cantidad va en unidades.
             'es_apartado': True,
         }
 
@@ -966,7 +966,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         mostrar_notificacion(
             pagina,
             f"Apartado #{id_apartado} cargado. Al facturar no se descuenta\n"
-            "el límite de venta y el apartado pasa a 'entregado'."
+            "su stock (ya lo descontó la tienda) y pasa a 'entregado'."
         )
 
     # Abre el diálogo de creación rápida de productos o clientes (F8).

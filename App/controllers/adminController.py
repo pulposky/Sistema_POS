@@ -159,7 +159,7 @@ def guardar_producto(datos, id_producto=None):
     Valida y guarda un producto (nuevo o existente).
 
     'datos' es un dict con: codigo, nombre, unidad, lugar, precio,
-    categoria, stock, limite_venta, estado y descripcion.
+    categoria, stock, estado y descripcion.
 
     Lanza ValueError si falta un campo o si precio/stock no son numéricos.
     """
@@ -183,11 +183,6 @@ def guardar_producto(datos, id_producto=None):
     except (TypeError, ValueError):
         raise ValueError("El stock debe ser un número.")
 
-    try:
-        limite_venta = int(datos.get("limite_venta", 0) or 0)
-    except (TypeError, ValueError):
-        raise ValueError("El límite de venta debe ser un número entero.")
-
     # Unidad, origen y categoría por defecto si el formulario no los envía.
     producto = {
         "codigo": codigo,
@@ -197,7 +192,6 @@ def guardar_producto(datos, id_producto=None):
         "precio": precio,
         "categoria": (datos.get("categoria") or CATEGORIA_POR_DEFECTO).strip(),
         "stock": stock,
-        "limite_venta": limite_venta,
         "estado": (datos.get("estado") or "inactivo").strip(),
         "descripcion": (datos.get("descripcion") or "").strip(),
     }

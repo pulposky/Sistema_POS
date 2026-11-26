@@ -423,7 +423,6 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
             ft.DataColumn(ft.Text("Unidad")),
             ft.DataColumn(ft.Text("Precio")),
             ft.DataColumn(ft.Text("Stock")),
-            ft.DataColumn(ft.Text("Límite venta")),
             ft.DataColumn(ft.Text("Estado")),
             ft.DataColumn(ft.Text("Acciones")),
         ],
@@ -451,7 +450,6 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
                         ft.DataCell(ft.Text(str(p.get("unidad", "-")))),
                         ft.DataCell(ft.Text(money(p.get("precio")))),
                         ft.DataCell(ft.Text(str(int(float(p.get("stock", 0) or 0))))),
-                        ft.DataCell(ft.Text(str(p.get("limite_venta", 0)))),
                         ft.DataCell(
                             ft.Text(
                                 "Activo" if activo else "Inactivo",
@@ -520,7 +518,6 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
         )
         campo_precio = ft.TextField(label="Precio", width=320, value=str(datos.get("precio", "")), keyboard_type=ft.KeyboardType.NUMBER)
         campo_stock = ft.TextField(label="Stock", width=320, value=str(datos.get("stock", "")), keyboard_type=ft.KeyboardType.NUMBER)
-        campo_limite = ft.TextField(label="Límite de venta (web)", width=320, value=str(datos.get("limite_venta", 0)), keyboard_type=ft.KeyboardType.NUMBER)
         campo_estado = ft.Dropdown(
             label="Estado",
             width=320,
@@ -549,7 +546,6 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
                     campo_categoria,
                     campo_precio,
                     campo_stock,
-                    campo_limite,
                     campo_estado,
                     campo_descripcion,
                     mensaje,
@@ -573,7 +569,6 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
                 "categoria": campo_categoria.value,
                 "precio": campo_precio.value,
                 "stock": campo_stock.value,
-                "limite_venta": campo_limite.value,
                 "estado": campo_estado.value,
                 "descripcion": campo_descripcion.value,
             }

@@ -491,8 +491,8 @@ def confirmar_factura(pago, productos, cliente, usuario, id_apartado=None):
         usuario (dict): Datos del usuario logueado. Debe tener 'id_usuario'.
         id_apartado (int|None): ID del apartado web que se está entregando.
             Si es None, se trata de una venta directa de pasillo (se descuenta
-            limite_venta). Si trae un valor, es una entrega de apartado: no se
-            descuenta limite_venta y el apartado pasa a 'entregado'.
+            stock). Si trae un valor, es una entrega de pedido web: no se
+            descuenta su stock y el apartado pasa a 'entregado'.
 
     Returns:
         dict|None: {'id_factura': int, 'ruta_pdf': str} o None si falla.
