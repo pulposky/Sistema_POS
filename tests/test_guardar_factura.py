@@ -78,4 +78,34 @@ assert correr(bd, {'id_apartado': 5}, [linea(1, 4, apartado=True)]) is None and 
 # limite_venta ya no se toca.
 assert not any('limite_venta' in s for s in bd.sqls)
 
-print('OK: 5 casos')
+# --- Presentaciones ---
+from controllers import ventasController as vc
+
+# 2 cajas x10 con stock 25: descuenta 20 y el detalle va en unidad mínima.
+caja = dict(linea(1, 2), factor=10, precio=45000, subtotal=90000)
+bd = BDFalsa({1: 25})
+assert correr(bd, {}, [caja]) == 1 and bd.stock[1] == 5
+_, _, cant_det, precio_det, sub_det = bd.detalles[0]
+assert cant_det == 20 and precio_det == 4500 and sub_det == 90000
+
+# 3 cajas x10 con stock 25: no alcanza, nada cambia.
+bd = BDFalsa({1: 25})
+assert correr(bd, {}, [dict(caja, cantidad=3)]) is None and bd.stock[1] == 25
+
+# Aviso de stock en pantalla cuenta el factor.
+assert vc.obtener_stock_restante({'stock': 25, 'cantidad': 3, 'factor': 10}) == -5
+
+# Cambiar a Caja x10 con descuento manual del 10 %.
+fila = {'precio': 4500, 'precio_unidad': 4500, 'precio_original': 4500, 'precio_original_unidad': 4500,
+        'cantidad': 2, 'descuento': 10, 'unidad': 'UND', 'factor': 1,
+        'presentaciones': [{'nombre': 'UND', 'factor': 1}, {'nombre': 'Caja x10', 'factor': 10}]}
+vc.cambiar_presentacion(fila, 10)
+assert fila['precio'] == 45000 and fila['subtotal'] == 81000 and fila['unidad'] == 'Caja x10'
+vc.cambiar_presentacion(fila, 1)
+assert fila['precio'] == 4500 and fila['unidad'] == 'UND'
+
+# Opciones: la unidad mínima va primero si no hay presentación de factor 1.
+assert vc.armar_presentaciones('UND', [{'nombre': 'Caja x100', 'factor': 100}]) == [
+    {'nombre': 'UND', 'factor': 1}, {'nombre': 'Caja x100', 'factor': 100}]
+assert vc.armar_presentaciones('UND', [{'nombre': 'Unidad', 'factor': 1}, {'nombre': 'Par', 'factor': 2}])[0]['nombre'] == 'Unidad'
+print('OK: 12 casos')

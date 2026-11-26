@@ -35,6 +35,7 @@ from models.ventasModel import (
     eliminar_factura,
     guardar_factura,
     obtener_apartados_pendientes as _obtener_apartados_pendientes_modelo,
+    obtener_presentaciones,
 )
 from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 
@@ -58,7 +59,7 @@ def calcular_precio_oferta(precio, descuento=0, fecha_inicio=None, fecha_fin=Non
             precio_final = precio * (1 - descuento / 100)
 
     El descuento se aplica sobre el precio unitario ANTES de cualquier
-    conversión de presentación (ej. cubetas de huevos = unidades * 30).
+    conversión de presentación (el precio de una caja = precio unidad * factor).
 
     Args:
         precio (int|float): Precio unitario (precio base del producto).
@@ -387,8 +388,52 @@ def agregar_producto_a_venta(productos, producto):
         dict: El producto preparado que se agregó a la lista.
     """
     producto_preparado = preparar_producto_venta(producto)
+    # Presentaciones (Caja x10, Par...). Las líneas de pedido web no cambian:
+    # ya vienen en unidad mínima con su precio.
+    producto_preparado["factor"] = 1
+    producto_preparado["precio_unidad"] = producto_preparado["precio"]
+    producto_preparado["precio_original_unidad"] = producto_preparado["precio_original"]
+    if not producto_preparado.get("es_apartado"):
+        id_producto = producto_preparado.get("id_producto") or producto_preparado.get("id")
+        producto_preparado["presentaciones"] = armar_presentaciones(
+            producto_preparado.get("unidad") or "UND",
+            obtener_presentaciones(id_producto),
+        )
     productos.append(producto_preparado)
     return producto_preparado
+
+
+# ---------------------------------------------------
+# Opciones de presentación de una fila de venta
+# ---------------------------------------------------
+def armar_presentaciones(unidad, presentaciones):
+    """
+    Devuelve las opciones de presentación con la unidad mínima primero.
+    Si la tienda ya tiene una presentación de factor 1 (ej. 'Unidad'), se
+    usa esa en lugar de agregar otra.
+    """
+    opciones = [{"nombre": p["nombre"], "factor": int(p["factor"])} for p in presentaciones]
+    if not any(p["factor"] == 1 for p in opciones):
+        opciones.insert(0, {"nombre": unidad, "factor": 1})
+    opciones.sort(key=lambda p: p["factor"] != 1)  # la de factor 1 primero, el resto en su orden
+    return opciones
+
+
+# ---------------------------------------------------
+# Cambia la presentación de una fila (Unidad -> Caja x10)
+# ---------------------------------------------------
+def cambiar_presentacion(producto, factor):
+    """
+    Fija la presentación de una fila de venta: precio = precio por unidad
+    (con oferta) x factor, y recalcula el subtotal con su descuento manual.
+    """
+    factor = int(factor)
+    opcion = next(p for p in producto["presentaciones"] if p["factor"] == factor)
+    producto["factor"] = factor
+    producto["unidad"] = opcion["nombre"]
+    producto["precio"] = float(producto["precio_unidad"]) * factor
+    producto["precio_original"] = float(producto["precio_original_unidad"]) * factor
+    return actualizar_descuento_producto(producto, producto.get("descuento", 0))
 
 
 # ---------------------------------------------------
@@ -421,7 +466,7 @@ def obtener_stock_restante(producto):
     Calcula cuánto stock queda de un producto después de vender la cantidad
     seleccionada.
 
-    Fórmula: stock_del_producto - cantidad_seleccionada.
+    Fórmula: stock_del_producto - cantidad_seleccionada * factor de presentación.
 
     Se usa en la vista para mostrar una advertencia visual cuando el stock
     restante es bajo o negativo (venta a crédito o sin stock suficiente).
@@ -433,7 +478,7 @@ def obtener_stock_restante(producto):
         float: Stock restante. Retorna 0 si hay error de conversión.
     """
     try:
-        return float(producto.get("stock", 0)) - float(producto.get("cantidad", 0))
+        return float(producto.get("stock", 0)) - float(producto.get("cantidad", 0)) * float(producto.get("factor") or 1)
     except (TypeError, ValueError):
         return 0
 

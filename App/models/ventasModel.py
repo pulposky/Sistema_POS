@@ -743,31 +743,12 @@ def guardar_factura(factura_datos, detalles):
             # cajero agregue durante una entrega se tratan como venta directa.
             es_apartado = bool(detalle.get('es_apartado'))
 
-            # -----------------------------------------
-            # CANTIDAD A DESCONTAR DEL STOCK (en UNIDADES)
-            # -----------------------------------------
-            # - Línea de apartado web: la cantidad ya viene en UNIDADES (la
-            #   web guardó el apartado convertido a unidades), por lo que
-            #   se usa tal cual, sin conversión.
-            # - Línea de pasillo (venta directa o extra en entrega de
-            #   apartado): la cantidad puede ser en CUBETAS (huevos), por lo
-            #   que se convierte a unidades (x30).
-            if es_apartado:
-                # Unidades ya reservadas en la web
-                cantidad_unidades = float(cantidad or 0)
-                # El detalle se registra en las mismas unidades reservadas
-                cantidad_detalle = cantidad_unidades
-            else:
-                # Detecta huevos por nombre o unidad (1 cubeta = 30 unidades)
-                nombre_producto = str(detalle.get('nombre') or '').lower()
-                unidad_producto = str(detalle.get('unidad') or '').lower()
-                es_huevo = 'huevo' in nombre_producto or 'cubeta' in unidad_producto
-
-                # Unidades a descontar del inventario
-                cantidad_unidades = cantidad * 30 if es_huevo else cantidad
-                # Cantidad física que se muestra en el detalle
-                # (en cubetas para huevos)
-                cantidad_detalle = cantidad
+            # Cantidad en UNIDAD MÍNIMA: cantidad x factor de la presentación
+            # (2 cajas x10 = 20). Las líneas de apartado web no traen factor
+            # porque ya vienen en unidad mínima.
+            factor = float(detalle.get('factor') or 1)
+            cantidad_unidades = float(cantidad or 0) * factor
+            cantidad_detalle = cantidad_unidades
 
             # Consulta SQL para insertar cada línea de detalle de venta
             sql_detalle = """
@@ -789,7 +770,7 @@ def guardar_factura(factura_datos, detalles):
                 id_venta,
                 id_producto,
                 cantidad_detalle,
-                detalle.get('precio'),
+                float(detalle.get('precio') or 0) / factor,
                 detalle.get('subtotal')
             ))
 
@@ -1013,7 +994,7 @@ def obtener_apartados_pendientes():
 
     Se unen con la tabla 'producto' para mostrar el nombre, la unidad y el
     precio del artículo apartado. La cantidad propia del apartado se guarda
-    en UNIDADES (la web convierte cubetas a unidades al reservar).
+    en UNIDAD MÍNIMA (la web convierte la presentación al reservar).
 
     Retorna:
         list[dict]: Lista de apartados pendientes con los datos del producto.
@@ -1074,3 +1055,31 @@ def obtener_apartados_pendientes():
         cursor.close()
         conexion.close()
 
+
+# =====================================================
+# PRESENTACIONES DE UN PRODUCTO (Caja x10, Par...)
+# =====================================================
+
+def obtener_presentaciones(id_producto):
+    """
+    Devuelve las presentaciones activas de un producto, en el orden de la
+    tienda: [{'nombre': 'Caja x10', 'factor': 10}, ...]. Lista vacía si no
+    tiene o si falla la conexión (se vende por unidad, como siempre).
+    """
+    conexion = conectar()
+    if not conexion:
+        return []
+    cursor = conexion.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            "SELECT nombre, factor FROM producto_presentacion "
+            "WHERE id_producto = %s AND activo = 1 ORDER BY orden, id",
+            (id_producto,)
+        )
+        return cursor.fetchall()
+    except Exception as err:
+        print(f"Error al obtener presentaciones: {err}")
+        return []
+    finally:
+        cursor.close()
+        conexion.close()

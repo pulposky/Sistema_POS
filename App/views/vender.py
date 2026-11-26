@@ -325,6 +325,34 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.Text(f"${precio_final:,.2f}")
         )
 
+    # Celda de presentación: desplegable (Unidad, Caja x10...) si el producto
+    # tiene presentaciones en la tienda; si no, solo el texto de la unidad.
+    def crear_celda_presentacion(producto, index):
+        opciones = producto.get('presentaciones') or []
+        if len(opciones) < 2 or modo_consulta:
+            return ft.DataCell(ft.Text(str(producto.get('unidad', 'UND'))))
+
+        def al_cambiar(e):
+            ventas_controller.cambiar_presentacion(producto, int(e.control.value))
+            fila = tabla_productos.rows[index]
+            fila.cells[4] = crear_celda_precio(producto)
+            fila.cells[6] = ft.DataCell(ft.Text(f"${producto['subtotal']:,.2f}"))
+            fila.cells[8] = crear_celda_acciones(producto, index)
+            actualizar_totales()
+
+        return ft.DataCell(
+            ft.Dropdown(
+                value=str(producto.get('factor', 1)),
+                options=[
+                    ft.dropdown.Option(key=str(o['factor']), text=o['nombre'])
+                    for o in opciones
+                ],
+                width=150,
+                dense=True,
+                on_select=al_cambiar,
+            )
+        )
+
     # Crea la celda de acciones de cada fila: muestra un indicador de stock
     # negativo (en rojo) si se excedió el stock, y un botón X para eliminar
     # el producto de la venta.
@@ -406,10 +434,8 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                             )
                         ),
 
-                        # Columna 3: Unidad de medida
-                        ft.DataCell(
-                            ft.Text(str(p.get("unidad", "UND")))
-                        ),
+                        # Columna 3: Presentación (desplegable si tiene)
+                        crear_celda_presentacion(p, i),
 
                         # Columna 4: Precio unitario (con oferta si aplica)
                         crear_celda_precio(p),
@@ -476,7 +502,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
                         on_click=lambda e, idx=len(productos): editar_cantidad(idx - 1)
                     )
                 ),
-                    ft.DataCell(ft.Text(str(producto.get('unidad', 'UND')))),
+                    crear_celda_presentacion(producto, len(productos) - 1),
                     crear_celda_precio(producto),
                     ft.DataCell(
                         ft.TextButton(
@@ -1162,7 +1188,7 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             ft.DataColumn(ft.Text("Codigo")),
             ft.DataColumn(ft.Text("Producto")),
             ft.DataColumn(ft.Text("Cantidad")),
-            ft.DataColumn(ft.Text("Unidad")),
+            ft.DataColumn(ft.Text("Presentación")),
             ft.DataColumn(ft.Text("Precio unitario")),
             ft.DataColumn(ft.Text("Descuento")),
             ft.DataColumn(ft.Text("Subtotal")),
