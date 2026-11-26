@@ -643,13 +643,11 @@ def guardar_factura(factura_datos, detalles):
     Esta función realiza las siguientes operaciones:
     1. Inserta la cabecera de la venta (con su id_apartado si aplica).
     2. Inserta cada producto vendido en 'detalle_venta'.
-    3. Descuenta el stock de cada producto vendido.
-    4. Según el tipo de venta:
-       - VENTA DIRECTA (id_apartado IS NULL): también descuenta
-         `limite_venta` y desactiva el producto si queda en 0.
-       - ENTREGA DE APARTADO WEB (id_apartado NOT NULL): NO toca
-         `limite_venta` (ya se restó en la web al apartar) y marca el
-         apartado como 'entregado'.
+    3. Descuenta el stock de las líneas de pasillo (atómico: si no alcanza,
+       se cancela toda la venta).
+    4. ENTREGA DE APARTADO WEB (id_apartado NOT NULL): bloquea el apartado,
+       exige que esté 'confirmado' (pagado), no descuenta su stock (la tienda
+       ya lo hizo) y lo marca como 'entregado'.
 
     Parámetros:
         factura_datos (dict): Datos de la cabecera de la venta.
@@ -674,6 +672,17 @@ def guardar_factura(factura_datos, detalles):
 
     # Bloque try/except para manejo de errores y rollback
     try:
+
+        # Bloquea la fila del apartado (igual que la tienda) para no chocar con
+        # un cliente que cancela al mismo tiempo. Solo se entrega lo ya pagado.
+        if es_entrega_apartado:
+            cursor.execute(
+                "SELECT estado FROM apartados WHERE id_apartado = %s FOR UPDATE",
+                (id_apartado,)
+            )
+            fila = cursor.fetchone()
+            if not fila or fila[0] != 'confirmado':
+                raise ValueError(f"El apartado #{id_apartado} ya no está pagado y pendiente de entrega")
 
         # Consulta SQL para insertar la cabecera de la venta
         # El estado se establece como 'ACTIVA' por defecto
@@ -729,10 +738,9 @@ def guardar_factura(factura_datos, detalles):
             cantidad = detalle.get('cantidad')
 
             # Indica si esta línea es el producto reservado del apartado web.
-            # Solo esa línea va en UNIDADES y sin descontar limite_venta (ya
-            # se restó al apartar en la web). Las líneas adicionales de pasillo
-            # que el cajero agregue durante una entrega se tratan como venta
-            # directa (conversión por si son huevos y descuento de limite_venta).
+            # Esa línea va en UNIDADES y NO descuenta stock (la tienda ya lo
+            # descontó al confirmar el pago). Las líneas extra de pasillo que el
+            # cajero agregue durante una entrega se tratan como venta directa.
             es_apartado = bool(detalle.get('es_apartado'))
 
             # -----------------------------------------
@@ -749,9 +757,6 @@ def guardar_factura(factura_datos, detalles):
                 cantidad_unidades = float(cantidad or 0)
                 # El detalle se registra en las mismas unidades reservadas
                 cantidad_detalle = cantidad_unidades
-                # No se descuenta limite_venta ni se toca el estado del
-                # producto aquí (ya se gestionó al apartar en la web)
-                descontar_limite = False
             else:
                 # Detecta huevos por nombre o unidad (1 cubeta = 30 unidades)
                 nombre_producto = str(detalle.get('nombre') or '').lower()
@@ -763,7 +768,6 @@ def guardar_factura(factura_datos, detalles):
                 # Cantidad física que se muestra en el detalle
                 # (en cubetas para huevos)
                 cantidad_detalle = cantidad
-                descontar_limite = True
 
             # Consulta SQL para insertar cada línea de detalle de venta
             sql_detalle = """
@@ -790,50 +794,18 @@ def guardar_factura(factura_datos, detalles):
             ))
 
             # --------------------------------
-            # DESCONTAR STOCK
+            # DESCONTAR STOCK (solo líneas de pasillo)
             # --------------------------------
-            # En ambos tipos de venta se descuenta stock físico del producto
-            sql_actualizar_stock = """
-                UPDATE producto
-                SET stock = stock - %s
-                WHERE id_producto = %s
-            """
-            cursor.execute(sql_actualizar_stock, (
-                cantidad_unidades,
-                id_producto
-            ))
-
-            # --------------------------------
-            # VENTA DIRECTA: DESCONTAR LIMITE_VENTA
-            # --------------------------------
-            # Solo en ventas directas de pasillo se descuenta el cupo en
-            # línea. En la entrega de un apartado web NO se toca, porque ya
-            # se restó cuando el cliente apartó el producto en la web.
-            if descontar_limite:
-                # Se descuenta limite_venta en unidades. Se hace en DOS
-                # pasos para evitar la ambigüedad de MySQL (dentro de un
-                # mismo UPDATE las referencias pueden tomar el valor ya
-                # actualizado y falsear la condición de desactivación).
-                sql_actualizar_limite = """
-                    UPDATE producto
-                    SET limite_venta = limite_venta - %s
-                    WHERE id_producto = %s
-                      AND limite_venta > 0
-                """
-                cursor.execute(sql_actualizar_limite, (
-                    cantidad_unidades,
-                    id_producto
-                ))
-
-                # Si limite_venta quedó en 0 o menos, se desactiva el producto
-                # (igual que hace la web al agotar el cupo)
-                sql_desactivar = """
-                    UPDATE producto
-                    SET estado = 'inactivo'
-                    WHERE id_producto = %s
-                      AND limite_venta <= 0
-                """
-                cursor.execute(sql_desactivar, (id_producto,))
+            # Descuento atómico: si no alcanza, no afecta filas y se cancela
+            # toda la venta. Las líneas del apartado web no se tocan.
+            if not es_apartado:
+                cursor.execute(
+                    "UPDATE producto SET stock = stock - %s "
+                    "WHERE id_producto = %s AND stock >= %s",
+                    (cantidad_unidades, id_producto, cantidad_unidades)
+                )
+                if cursor.rowcount == 0:
+                    raise ValueError(f"No hay stock suficiente de '{detalle.get('nombre') or id_producto}'")
 
         # --------------------------------
         # ENTREGA DE APARTADO: MARCAR COMO ENTREGADO
@@ -904,7 +876,7 @@ def crear_cliente(datos):
             telefono,
             rol
         )
-        VALUES (%s, %s, %s,, %s, %s)
+        VALUES (%s, %s, %s, %s, %s)
     """
 
     # Bloque try/except/finally para manejo seguro de la conexión
@@ -1077,7 +1049,7 @@ def obtener_apartados_pendientes():
                 p.precio
             FROM apartados ap
             JOIN producto p ON p.id_producto = ap.producto
-            WHERE ap.estado IN ('pendiente', 'confirmado')
+            WHERE ap.estado = 'confirmado'
             ORDER BY ap.fecha ASC
         """
 
@@ -1101,3 +1073,4 @@ def obtener_apartados_pendientes():
         # Garantiza la liberación de recursos siempre
         cursor.close()
         conexion.close()
+

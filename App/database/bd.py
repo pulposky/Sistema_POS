@@ -37,7 +37,7 @@ DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
 # Nombre de la base de datos que contiene las tablas del sistema POS.
-DB_NAME = os.getenv("DB_NAME", "sena_pdv")
+DB_NAME = os.getenv("DB_NAME", "tienda_db")
 
 # Puerto de escucha de MySQL. El estándar es 3306.
 # Se convierte a entero porque las variables de entorno siempre son strings.
