@@ -3,7 +3,7 @@ from datetime import datetime
 import asyncio
 from utils.buscarProducto import buscar_producto_view
 from utils.buscarCliente import buscar_cliente_view
-from utils.entregarApartado import entregar_apartado_view
+from utils.entregarApartado import entregar_pedido_view
 from controllers import ventasController as ventas_controller
 from utils.roles import es_facturador
 from utils.metodoPago import metodo_pago_view
@@ -66,12 +66,6 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
     # Se asigna cuando el usuario elige un cliente desde el buscador (F1).
     # Es un diccionario con nombre, rol, id, etc.
     cliente_actual = None
-
-    # Apartado web que se está entregando en esta factura.
-    # None = venta directa de pasillo; int = id del apartado en entrega (F9).
-    # Al entregarse, se precarga el producto reservado y al facturar NO se
-    # descuenta su stock (ya lo hizo la tienda) y el apartado pasa a 'entregado'.
-    apartado_actual = None
 
     # Lista de facturas cargadas desde la base de datos para navegación (F6/F7)
     facturas = []
@@ -554,7 +548,6 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
             productos=productos,
             cliente=cliente_actual,
             usuario=usuario,
-            id_apartado=apartado_actual
         )
 
         if not resultado:
@@ -609,14 +602,10 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         nonlocal modo_consulta
         nonlocal id_factura_actual
         nonlocal cliente_actual
-        nonlocal apartado_actual
 
         # Vaciar la lista de productos y el cliente seleccionado
         productos = []
         cliente_actual = None
-
-        # Reiniciar la entrega de apartado (venta directa de pasillo)
-        apartado_actual = None
 
         # Limpiar todas las filas de la tabla
         tabla_productos.rows.clear()
@@ -928,72 +917,22 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
         pagina.update()
 
     # ------------------------------------------------------------------
-    # ENTREGA DE APARTADO WEB (F9)
+    # ENTREGA DE PEDIDOS WEB (F9)
     # ------------------------------------------------------------------
-    # Abre el diálogo que lista los apartados web pendientes. Al seleccionar
-    # uno, se precarga el producto reservado en la venta y se asocia el
-    # apartado a la factura. Al facturar, no se descuenta su stock y el
-    # apartado pasa a 'entregado'.
+    # Abre la ventana de pedidos web ya pagados. La entrega se hace ahí mismo
+    # (su propia factura, sin descontar stock) y no toca la venta en curso.
     def entregar_apartado():
 
-        # No permitir entregar apartados en modo consulta
+        # No permitir entregas en modo consulta
         if modo_consulta:
             return
 
-        dialog = entregar_apartado_view(pagina, seleccionar_apartado)
+        dialog = entregar_pedido_view(
+            pagina, usuario, lambda texto: mostrar_notificacion(pagina, texto)
+        )
         pagina.overlay.append(dialog)
         dialog.open = True
         pagina.update()
-
-    # Callback que se ejecuta al elegir un apartado en el diálogo (F9).
-    # Precarga el producto reservado en la venta con la cantidad (en unidades)
-    # que el cliente apartó en línea, y muestra el cliente en su campo.
-    def seleccionar_apartado(apartado):
-        nonlocal apartado_actual
-
-        id_apartado = apartado.get('id_apartado')
-        cantidad = apartado.get('cantidad', 1)
-        id_producto = apartado.get('id_producto')
-        nombre_producto = apartado.get('nombre', 'Sin nombre')
-        nombre_cliente = apartado.get('nombre_cliente', 'Cliente')
-
-        # Armo el producto a partir del apartado con la cantidad reservada.
-        # La cantidad ya viene en unidades (la web convierte cubetas x30).
-        # 'precio_aplicado' es el precio unitario real (CON descuento) que el
-        # cliente pagó/apartó en la web; se respeta tal cual al facturar.
-        precio_aplicado = apartado.get('precio_aplicado')
-        producto = {
-            'id': id_producto,
-            'id_producto': id_producto,
-            'codigo': apartado.get('codigo', '-'),
-            'nombre': nombre_producto,
-            'unidad': apartado.get('unidad', 'UND'),
-            'precio': float(precio_aplicado if precio_aplicado is not None else apartado.get('precio', 0)),
-            'precio_aplicado': precio_aplicado,
-            'cantidad': cantidad,
-            'stock': 0,
-            'descuento': 0,
-            'subtotal': float(cantidad) * float(precio_aplicado if precio_aplicado is not None else apartado.get('precio', 0)),
-            # Marca que esta línea es el producto reservado del apartado web.
-            # Se usa al facturar para saber que NO debe descontarse su stock
-            # (ya lo hizo la tienda) y que su cantidad va en unidades.
-            'es_apartado': True,
-        }
-
-        # Precargo el producto reservado en la tabla de la venta
-        agregar_producto_a_tabla(producto)
-
-        # Asocio el apartado a la factura actual y muestro el cliente del
-        # apartado en el campo de cliente seleccionado.
-        apartado_actual = id_apartado
-        nombreCliente.value = f"{nombre_cliente} - Apartado"
-        pagina.update()
-
-        mostrar_notificacion(
-            pagina,
-            f"Apartado #{id_apartado} cargado. Al facturar no se descuenta\n"
-            "su stock (ya lo descontó la tienda) y pasa a 'entregado'."
-        )
 
     # Abre el diálogo de creación rápida de productos o clientes (F8).
     # Muestra un menú con opciones "CrearP" (producto) y "CrearU" (usuario).

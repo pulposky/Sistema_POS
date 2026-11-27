@@ -12,6 +12,8 @@ Todas las funciones manejan sus propias conexiones a la base de datos MySQL
 y utilizan transacciones para garantizar la integridad de los datos.
 """
 
+from datetime import datetime
+
 # Importa la función de conexión a la base de datos MySQL
 from database.bd import conectar
 
@@ -394,10 +396,15 @@ def obtener_factura_por_id(id_venta):
             u.nombre AS nombre_usuario,
             v.dinero_recibido,
             v.cambio,
-            v.notas
+            v.notas,
+            v.id_apartado,
+            pe.costo_envio AS pedido_envio,
+            pe.descuento AS pedido_descuento
         FROM venta v
         INNER JOIN usuarios u
             ON v.id_usuario = u.id_usuario
+        LEFT JOIN apartados ap ON ap.id_apartado = v.id_apartado
+        LEFT JOIN pedidos pe ON pe.id_pedido = ap.id_pedido
         WHERE v.id_venta = %s
     """
 
@@ -984,79 +991,6 @@ def crear_producto(datos):
 
 
 # =====================================================
-# OBTENER APARTADOS PENDIENTES (ENTREGAS WEB)
-# =====================================================
-
-def obtener_apartados_pendientes():
-    """
-    Obtiene los apartados web que están a la espera de ser entregados en
-    el punto de venta (estado 'pendiente' o 'confirmado').
-
-    Se unen con la tabla 'producto' para mostrar el nombre, la unidad y el
-    precio del artículo apartado. La cantidad propia del apartado se guarda
-    en UNIDAD MÍNIMA (la web convierte la presentación al reservar).
-
-    Retorna:
-        list[dict]: Lista de apartados pendientes con los datos del producto.
-        Retorna lista vacía si no hay resultados o si falla la conexión.
-    """
-
-    # Establece la conexión a la base de datos
-    conexion = conectar()
-
-    # Si la conexión falla, retorna lista vacía como valor seguro
-    if not conexion:
-        return []
-
-    # Cursor tipo diccionario para acceder a las columnas por nombre
-    cursor = conexion.cursor(dictionary=True)
-
-    # Bloque try/finally para garantizar el cierre de recursos
-    try:
-
-        # Consulta que une apartados pendientes/confirmados con su producto
-        # Ordena por fecha ascendente: los más antiguos primero (FIFO)
-        sql = """
-            SELECT
-                ap.id_apartado,
-                ap.nombre_cliente,
-                ap.cantidad,
-                ap.fecha,
-                ap.precio_aplicado,
-                p.id_producto,
-                p.codigo,
-                p.nombre,
-                p.unidad,
-                p.precio
-            FROM apartados ap
-            JOIN producto p ON p.id_producto = ap.producto
-            WHERE ap.estado = 'confirmado'
-            ORDER BY ap.fecha ASC
-        """
-
-        # Ejecuta la consulta
-        cursor.execute(sql)
-
-        # Obtiene todas las filas como lista de diccionarios
-        resultado = cursor.fetchall()
-
-        # Retorna la lista de apartados pendientes (puede ser vacía)
-        return resultado
-
-    except Exception as err:
-        # Imprime el error para depuración
-        print(f"Error al obtener apartados pendientes: {err}")
-
-        # Retorna lista vacía en caso de error
-        return []
-
-    finally:
-        # Garantiza la liberación de recursos siempre
-        cursor.close()
-        conexion.close()
-
-
-# =====================================================
 # PRESENTACIONES DE UN PRODUCTO (Caja x10, Par...)
 # =====================================================
 
@@ -1080,6 +1014,179 @@ def obtener_presentaciones(id_producto):
     except Exception as err:
         print(f"Error al obtener presentaciones: {err}")
         return []
+    finally:
+        cursor.close()
+        conexion.close()
+
+
+# =====================================================
+# PEDIDOS WEB POR ENTREGAR (F9)
+# =====================================================
+# Un pedido web ya pagado se entrega completo en una sola factura. La tienda
+# ya descontó el stock al confirmar el pago, así que aquí NO se toca.
+
+_SQL_LINEAS_PEDIDO = """
+    SELECT a.id_apartado, a.id_pedido, a.estado, a.cantidad, a.precio_aplicado,
+           a.presentacion_nombre, a.presentacion_factor,
+           a.entrega, a.direccion_entrega, a.telefono_entrega,
+           pr.id_producto, pr.nombre, pr.unidad, pr.codigo, pr.lugar
+    FROM apartados a
+    JOIN producto pr ON pr.id_producto = a.producto
+"""
+
+# La tienda guarda 'nequi' / 'efectivo'; el POS usa sus propios nombres.
+_METODO_PAGO_POS = {'efectivo': 'Efectivo', 'nequi': 'Transferencia'}
+
+
+def _numero(valor):
+    """1.0 -> '1', 2.5 -> '2.5' (para mostrar cantidades)."""
+    valor = float(valor)
+    return str(int(valor)) if valor.is_integer() else f"{valor:g}"
+
+
+def resumen_pedido(pedido):
+    """
+    Cuentas de un pedido web, iguales a las de la tienda: suma de las líneas
+    confirmadas - cupón (nunca más que esa suma) + envío. Si alguna línea ya
+    se entregó antes, el envío y el cupón ya se cobraron y no se repiten.
+    """
+    lineas = []
+    for l in pedido['lineas']:
+        if l['estado'] != 'confirmado':
+            continue
+        unidades = float(l['cantidad'] or 0)
+        precio = float(l['precio_aplicado'] or 0)
+        factor = int(l.get('presentacion_factor') or 0)
+        if l.get('presentacion_nombre') and factor > 0:
+            cantidad, nombre_presentacion = unidades / factor, l['presentacion_nombre']
+            precio_presentacion = precio * factor
+        else:
+            cantidad, nombre_presentacion = unidades, l.get('unidad') or 'UND'
+            precio_presentacion = precio
+        lineas.append(dict(l, unidades=unidades, cantidad_presentacion=cantidad,
+                           nombre_presentacion=nombre_presentacion,
+                           texto_cantidad=f"{_numero(cantidad)} {nombre_presentacion}",
+                           precio_presentacion=precio_presentacion,
+                           subtotal=round(precio * unidades, 2)))
+
+    subtotal = round(sum(l['subtotal'] for l in lineas), 2)
+    ya_entregado = any(l['estado'] == 'entregado' for l in pedido['lineas'])
+    descuento = 0 if ya_entregado else min(subtotal, float(pedido.get('descuento') or 0))
+    envio = 0 if ya_entregado else float(pedido.get('costo_envio') or 0)
+    return {'lineas': lineas, 'subtotal': subtotal, 'descuento': descuento,
+            'envio': envio, 'total': round(subtotal - descuento + envio, 2)}
+
+
+def obtener_pedidos_por_entrega():
+    """
+    Pedidos web con alguna línea pagada (confirmado) y ninguna sin pagar,
+    los más antiguos primero, cada uno con sus líneas en 'lineas'.
+    """
+    conexion = conectar()
+    if not conexion:
+        return []
+    cursor = conexion.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT p.* FROM pedidos p
+            WHERE p.id_pedido IN (
+                SELECT id_pedido FROM apartados WHERE id_pedido IS NOT NULL
+                GROUP BY id_pedido
+                HAVING SUM(estado = 'confirmado') > 0 AND SUM(estado = 'pendiente') = 0
+            )
+            ORDER BY p.fecha ASC, p.id_pedido ASC
+        """)
+        pedidos = cursor.fetchall()
+        if not pedidos:
+            return []
+        por_id = {p['id_pedido']: dict(p, lineas=[]) for p in pedidos}
+        marcas = ', '.join(['%s'] * len(por_id))
+        cursor.execute(_SQL_LINEAS_PEDIDO + f" WHERE a.id_pedido IN ({marcas}) ORDER BY a.id_apartado",
+                       tuple(por_id))
+        for l in cursor.fetchall():
+            por_id[l['id_pedido']]['lineas'].append(l)
+        return list(por_id.values())
+    except Exception as err:
+        print(f"Error al obtener pedidos por entregar: {err}")
+        return []
+    finally:
+        cursor.close()
+        conexion.close()
+
+
+def entregar_pedido(id_pedido, id_usuario, lineas_vistas=None):
+    """
+    Entrega un pedido web completo en una sola transacción: bloquea el pedido
+    y sus líneas, recalcula desde la base, crea la venta (sin descontar stock)
+    y marca las líneas como 'entregado'.
+
+    lineas_vistas: id_apartado de las líneas confirmadas que vio el cajero; si
+    la tienda las cambió mientras tanto, se rechaza para que lo revise.
+
+    Retorna {'id_venta', 'resumen', 'pedido', 'id_cliente'}.
+    Lanza ValueError con un mensaje para el cajero si ya no se puede entregar.
+    """
+    conexion = conectar()
+    if not conexion:
+        raise ValueError("Sin conexión a la base de datos.")
+    cursor = conexion.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM pedidos WHERE id_pedido = %s FOR UPDATE", (id_pedido,))
+        pedido = cursor.fetchone()
+        if not pedido:
+            raise ValueError(f"El pedido #{id_pedido} no existe.")
+        cursor.execute(_SQL_LINEAS_PEDIDO + " WHERE a.id_pedido = %s ORDER BY a.id_apartado FOR UPDATE",
+                       (id_pedido,))
+        pedido['lineas'] = cursor.fetchall()
+
+        estados = [l['estado'] for l in pedido['lineas']]
+        if 'pendiente' in estados:
+            raise ValueError(f"El pedido #{id_pedido} tiene productos sin pagar. Confírmalo en la tienda.")
+        if 'confirmado' not in estados:
+            raise ValueError(f"El pedido #{id_pedido} ya no está por entregar (entregado o cancelado).")
+        confirmadas = {l['id_apartado'] for l in pedido['lineas'] if l['estado'] == 'confirmado'}
+        if lineas_vistas is not None and confirmadas != set(lineas_vistas):
+            raise ValueError(f"El pedido #{id_pedido} cambió en la tienda. Revísalo de nuevo antes de entregar.")
+
+        resumen = resumen_pedido(pedido)
+
+        # Cliente del pedido si existe en la tabla compartida; si no, el genérico
+        # con el nombre del pedido en la nota.
+        id_cliente = 1
+        if pedido.get('id_cliente'):
+            cursor.execute("SELECT id_cliente FROM clientes WHERE id_cliente = %s", (pedido['id_cliente'],))
+            if cursor.fetchone():
+                id_cliente = pedido['id_cliente']
+        nota = f"Pedido web #{id_pedido}"
+        if id_cliente == 1 and pedido.get('nombre_cliente'):
+            nota = f"{nota} - {pedido['nombre_cliente']}"[:250]
+
+        metodo = _METODO_PAGO_POS.get(str(pedido.get('metodo_pago') or '').lower(), 'Transferencia')
+        cursor.execute("""
+            INSERT INTO venta (fecha, total, metodo_pago, estado, id_cliente, id_usuario,
+                               dinero_recibido, cambio, notas, id_apartado)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"), resumen['total'], metodo, "ACTIVA",
+            id_cliente, id_usuario, resumen['total'], 0, nota, resumen['lineas'][0]['id_apartado'],
+        ))
+        id_venta = cursor.lastrowid
+
+        for l in resumen['lineas']:
+            cursor.execute("""
+                INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario, subtotal)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (id_venta, l['id_producto'], l['unidades'], float(l['precio_aplicado'] or 0), l['subtotal']))
+
+        cursor.execute(
+            "UPDATE apartados SET estado = 'entregado' WHERE id_pedido = %s AND estado = 'confirmado'",
+            (id_pedido,)
+        )
+        conexion.commit()
+        return {'id_venta': id_venta, 'resumen': resumen, 'pedido': pedido, 'id_cliente': id_cliente}
+    except Exception:
+        conexion.rollback()
+        raise
     finally:
         cursor.close()
         conexion.close()

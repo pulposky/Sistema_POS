@@ -34,8 +34,10 @@ from models.ventasModel import (
     obtener_producto_por_id,
     eliminar_factura,
     guardar_factura,
-    obtener_apartados_pendientes as _obtener_apartados_pendientes_modelo,
     obtener_presentaciones,
+    obtener_pedidos_por_entrega,
+    entregar_pedido,
+    resumen_pedido,
 )
 from utils.generarFactura import generar_factura_pdf, imprimir_factura_datos
 
@@ -111,21 +113,59 @@ def calcular_precio_oferta(precio, descuento=0, fecha_inicio=None, fecha_fin=Non
 
 
 # ---------------------------------------------------
-# Lista de apartados web pendientes de entrega
+# Entrega de un pedido web completo (F9)
 # ---------------------------------------------------
-def obtener_apartados_pendientes():
+def entregar_pedido_web(id_pedido, usuario, lineas_vistas=None):
     """
-    Solicita al modelo la lista de apartados web cuyo estado es
-    'pendiente' o 'confirmado', es decir, que están a la espera de
-    ser entregados en el punto de venta.
-
-    Cada registro viene unido con los datos del producto apartado
-    (nombre, unidad, precio) y su cantidad en unidades.
+    Entrega el pedido (el modelo valida y guarda todo en una transacción) y
+    después genera el ticket. Si la impresión falla, la venta ya quedó
+    guardada y se puede reimprimir desde Consultar (F6/F7).
 
     Returns:
-        list[dict]: Apartados pendientes con datos del producto.
+        dict: {'id_venta', 'resumen', 'pedido', 'impreso': bool}.
+    Raises:
+        ValueError: con el mensaje para el cajero si ya no se puede entregar.
     """
-    return _obtener_apartados_pendientes_modelo()
+    resultado = entregar_pedido(id_pedido, usuario.get("id_usuario", 1), lineas_vistas)
+    pedido, resumen = resultado["pedido"], resultado["resumen"]
+
+    if resultado["id_cliente"] != 1:
+        cliente = obtener_cliente_por_id(resultado["id_cliente"]) or {}
+    else:
+        cliente = {"nombre": pedido.get("nombre_cliente") or "Consumidor final"}
+
+    productos_ticket = [
+        {
+            "id": l.get("codigo"),
+            "nombre": l["nombre"],
+            "cantidad": l["cantidad_presentacion"],
+            "unidad": l["nombre_presentacion"],
+            "precio": l["precio_presentacion"],
+            "subtotal": l["subtotal"],
+            "lugar": l.get("lugar") or "-",
+        }
+        for l in resumen["lineas"]
+    ]
+    try:
+        # generar_factura_pdf atrapa sus propios errores y devuelve None
+        ruta = generar_factura_pdf(
+            id_factura=resultado["id_venta"],
+            cliente=cliente,
+            usuario=usuario,
+            productos=productos_ticket,
+            total=resumen["total"],
+            metodo_pago=f"Pedido web #{id_pedido} ({pedido.get('metodo_pago') or 'pagado'})",
+            dinero_recibido=resumen["total"],
+            cambio=0,
+            envio=resumen["envio"],
+            descuento=resumen["descuento"],
+            abrir=True,
+        )
+        impreso = ruta is not None
+    except Exception as err:
+        print(f"Pedido #{id_pedido} entregado, pero falló la impresión: {err}")
+        impreso = False
+    return dict(resultado, impreso=impreso)
 
 
 # ---------------------------------------------------
@@ -745,6 +785,9 @@ def imprimir_factura_consultada(id_venta, usuario):
         return None
 
     factura = datos["factura"]
+    envio, descuento = ajustes_venta_web(
+        factura, sum(float(p.get("subtotal", 0) or 0) for p in datos["productos"])
+    )
 
     if imprimir_factura_datos(
         id_factura=id_venta,
@@ -760,9 +803,30 @@ def imprimir_factura_consultada(id_venta, usuario):
         fecha_actual=factura.get("fecha"),
         es_copia=True,
         notas_empresa=factura.get("notas_empresa") or None,
+        envio=envio,
+        descuento=descuento,
     ):
         return True
     return None
+
+
+# ---------------------------------------------------
+# Envío y cupón de una venta de pedido web (para reimprimir)
+# ---------------------------------------------------
+def ajustes_venta_web(factura, suma_lineas):
+    """
+    Devuelve (envio, descuento) para que el ticket cuadre con el total guardado.
+    Usa los del pedido si cuadran; si no (pedido entregado en partes o venta
+    normal), muestra solo la diferencia entre el total y la suma de líneas.
+    """
+    total = float(factura.get("total", 0) or 0)
+    envio = float(factura.get("pedido_envio") or 0)
+    descuento = float(factura.get("pedido_descuento") or 0)
+    if envio or descuento:
+        if abs(suma_lineas - min(suma_lineas, descuento) + envio - total) < 0.01:
+            return envio, min(suma_lineas, descuento)
+    diferencia = round(total - suma_lineas, 2)
+    return (diferencia, 0) if diferencia > 0 else (0, -diferencia if diferencia < 0 else 0)
 
 
 # ---------------------------------------------------
