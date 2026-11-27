@@ -139,7 +139,7 @@ def actualizar_documento(tipo, numero, cabecera, detalles):
         # Se usa FOR UPDATE para bloquear la fila y prevenir ediciones
         # concurrentes (que otro usuario edite el mismo documento a la vez)
         cursor.execute(
-            f"SELECT estado FROM {config['cabecera']} WHERE {config['id']} = %s FOR UPDATE",
+            f"SELECT estado{', id_apartado' if tipo == 'VENTA' else ''} FROM {config['cabecera']} WHERE {config['id']} = %s FOR UPDATE",
             (numero,),
         )
 
@@ -153,6 +153,10 @@ def actualizar_documento(tipo, numero, cabecera, detalles):
         # Si el documento no está activo (está anulado), no se puede editar
         if documento.get("estado") != "ACTIVA":
             raise ValueError("Solo se pueden actualizar documentos activos.")
+
+        # Las ventas generadas desde un pedido web (apartado) no se editan
+        if tipo == "VENTA" and documento.get("id_apartado") is not None:
+            raise ValueError("Las facturas de pedidos web no se pueden editar.")
 
         # PASO 2: Obtener los detalles actuales del documento
         # Se necesitan para revertir el movimiento de stock anterior

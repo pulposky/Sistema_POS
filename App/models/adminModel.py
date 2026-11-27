@@ -50,10 +50,20 @@ def obtener_estadisticas():
         cursor.execute("""
             SELECT COUNT(*) AS documentos
             FROM venta
-            WHERE estado = 'ACTIVA' AND DATE(fecha) = CURDATE()
+            WHERE estado = 'ACTIVA' AND DATE(fecha) = CURDATE() AND id_apartado IS NULL
         """)
         fila = cursor.fetchone() or {}
         stats["ventas_hoy"] = int(fila.get("documentos", 0))
+
+        # -------- Pedidos web entregados hoy (ventas con id_apartado) --------
+        cursor.execute("""
+            SELECT COUNT(*) AS documentos, COALESCE(SUM(total), 0) AS total
+            FROM venta
+            WHERE estado = 'ACTIVA' AND DATE(fecha) = CURDATE() AND id_apartado IS NOT NULL
+        """)
+        fila = cursor.fetchone() or {}
+        stats["pedidos_web_hoy"] = int(fila.get("documentos", 0))
+        stats["pedidos_web_total_hoy"] = float(fila.get("total", 0) or 0)
 
         # -------- Compras de hoy --------
         cursor.execute("""

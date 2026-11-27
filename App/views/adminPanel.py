@@ -181,6 +181,7 @@ def admin_panel_view(pagina: ft.Page, ir_a_inicio, admin):
         # -------- Tarjetas (en filas de 4) --------
         tarjetas = [
             crear_tarjeta(str(stats.get("ventas_hoy", 0)), "Ventas de hoy", ft.Colors.GREEN_900),
+            crear_tarjeta(str(stats.get("pedidos_web_hoy", 0)), f"Pedidos web entregados · {money(stats.get('pedidos_web_total_hoy', 0))}", ft.Colors.GREEN_900),
             crear_tarjeta(str(stats.get("compras_hoy", 0)), f"Compras de hoy · {money(stats.get('compras_total_hoy', 0))}", ft.Colors.BLUE_900),
             crear_tarjeta(str(stats.get("remisiones_hoy", 0)), "Remisiones de hoy", ft.Colors.BLUE_900),
             crear_tarjeta(str(stats.get("productos_total", 0)), f"Productos ({stats.get('productos_activos', 0)} activos)", ft.Colors.BLACK),

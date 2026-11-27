@@ -294,6 +294,8 @@ def _crear_texto_ticket(
     transferencia=None,
     es_copia=False,
     notas_empresa=None,
+    envio=0,
+    descuento=0,
 ):
     """
     Construye el texto completo del ticket térmico línea por línea.
@@ -402,7 +404,9 @@ def _crear_texto_ticket(
         subtotal_calc = sum(p.get("subtotal", 0) for p in productos)
         lineas.extend([LINEA_TERMICA])
         lineas.extend(_dinero_ticket("Subtotal:", subtotal_calc))
-        lineas.extend(_dinero_ticket("Descuento:", 0))
+        lineas.extend(_dinero_ticket("Descuento:", descuento))
+        if envio > 0:
+            lineas.extend(_dinero_ticket("Envío:", envio))
         lineas.extend(_dinero_ticket("TOTAL:", total))
 
         # Desglose de pago mixto en la sección de totales
@@ -486,6 +490,8 @@ def imprimir_factura_datos(
     fecha_actual=None,
     es_copia=False,
     notas_empresa=None,
+    envio=0,
+    descuento=0,
 ):
     """
     Punto de entrada principal para imprimir un ticket térmico directamente
@@ -567,6 +573,8 @@ def imprimir_factura_datos(
         transferencia=transferencia,
         es_copia=es_copia,
         notas_empresa=notas_empresa,
+        envio=envio,
+        descuento=descuento,
     )
     return imprimir_ticket_termico(texto_ticket, nombre_impresora)
 
@@ -588,6 +596,8 @@ def generar_factura_pdf(
     prefijo_archivo="factura",
     mostrar_precios=True,
     notas_empresa=None,
+    envio=0,
+    descuento=0,
 ):
     """
     Genera un PDF con formato de recibo/boleta de 58mm y opcionalmente
@@ -826,9 +836,12 @@ def generar_factura_pdf(
             # Armo la tabla de totales como lista de filas [etiqueta, valor]
             totales = [
                 ["Subtotal:", _moneda(subtotal_calc)],
-                ["Descuento:", "$0"],
-                ["TOTAL:", _moneda(total)],
+                ["Descuento:", _moneda(descuento)],
             ]
+            if envio > 0:
+                totales.append(["Envío:", _moneda(envio)])
+            fila_total = len(totales)  # la fila TOTAL se corre si hay envío
+            totales.append(["TOTAL:", _moneda(total)])
 
             # Si es pago mixto, agrego el desglose en la tabla de totales
             if es_mixto:
@@ -847,11 +860,11 @@ def generar_factura_pdf(
             )
             tabla_totales.setStyle(TableStyle([
                 ("FONTSIZE", (0, 0), (-1, -1), 6),
-                ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),  # TOTAL en negrita
-                ("FONTSIZE", (0, 2), (-1, 2), 8),                  # TOTAL más grande
+                ("FONTNAME", (0, fila_total), (-1, fila_total), "Helvetica-Bold"),  # TOTAL en negrita
+                ("FONTSIZE", (0, fila_total), (-1, fila_total), 8),                  # TOTAL más grande
                 ("ALIGN", (1, 0), (1, -1), "RIGHT"),               # Montos a la derecha
-                ("LINEABOVE", (0, 2), (-1, 2), 0.7, colors.black), # Línea sobre TOTAL
-                ("LINEBELOW", (0, 2), (-1, 2), 0.7, colors.black),# Línea bajo TOTAL
+                ("LINEABOVE", (0, fila_total), (-1, fila_total), 0.7, colors.black), # Línea sobre TOTAL
+                ("LINEBELOW", (0, fila_total), (-1, fila_total), 0.7, colors.black),# Línea bajo TOTAL
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 2),
@@ -890,6 +903,8 @@ def generar_factura_pdf(
                 efectivo=efectivo,
                 transferencia=transferencia,
                 notas_empresa=notas_empresa,
+                envio=envio,
+                descuento=descuento,
             )
             # Si la impresión térmica falla, abro el PDF en el visor
             if not imprimir_ticket_termico(texto_ticket):
