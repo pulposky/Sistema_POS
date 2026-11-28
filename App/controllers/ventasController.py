@@ -428,17 +428,15 @@ def agregar_producto_a_venta(productos, producto):
         dict: El producto preparado que se agregó a la lista.
     """
     producto_preparado = preparar_producto_venta(producto)
-    # Presentaciones (Caja x10, Par...). Las líneas de pedido web no cambian:
-    # ya vienen en unidad mínima con su precio.
+    # Presentaciones (Caja x10, Par...)
     producto_preparado["factor"] = 1
     producto_preparado["precio_unidad"] = producto_preparado["precio"]
     producto_preparado["precio_original_unidad"] = producto_preparado["precio_original"]
-    if not producto_preparado.get("es_apartado"):
-        id_producto = producto_preparado.get("id_producto") or producto_preparado.get("id")
-        producto_preparado["presentaciones"] = armar_presentaciones(
-            producto_preparado.get("unidad") or "UND",
-            obtener_presentaciones(id_producto),
-        )
+    id_producto = producto_preparado.get("id_producto") or producto_preparado.get("id")
+    producto_preparado["presentaciones"] = armar_presentaciones(
+        producto_preparado.get("unidad") or "UND",
+        obtener_presentaciones(id_producto),
+    )
     productos.append(producto_preparado)
     return producto_preparado
 
@@ -548,7 +546,7 @@ def formatear_stock(stock):
 # Guarda la factura en la base de datos
 # y genera automáticamente el PDF
 # ---------------------------------------------------
-def confirmar_factura(pago, productos, cliente, usuario, id_apartado=None):
+def confirmar_factura(pago, productos, cliente, usuario):
     """
     Función principal que confirma y guarda una venta completa.
 
@@ -574,10 +572,6 @@ def confirmar_factura(pago, productos, cliente, usuario, id_apartado=None):
         productos (list[dict]): Lista de productos vendidos con subtotal calculado.
         cliente (dict|None): Datos del cliente. Si es None, se usa id_cliente=1 (generico).
         usuario (dict): Datos del usuario logueado. Debe tener 'id_usuario'.
-        id_apartado (int|None): ID del apartado web que se está entregando.
-            Si es None, se trata de una venta directa de pasillo (se descuenta
-            stock). Si trae un valor, es una entrega de pedido web: no se
-            descuenta su stock y el apartado pasa a 'entregado'.
 
     Returns:
         dict|None: {'id_factura': int, 'ruta_pdf': str} o None si falla.
@@ -606,7 +600,6 @@ def confirmar_factura(pago, productos, cliente, usuario, id_apartado=None):
         "dinero_recibido": pago["dinero_recibido"],
         "cambio": pago["cambio"],
         "notas": notas_guardadas,
-        "id_apartado": id_apartado,
     }
 
     # Guardo la factura (cabecera + detalles) en la base de datos

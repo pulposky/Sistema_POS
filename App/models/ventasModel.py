@@ -648,18 +648,15 @@ def guardar_factura(factura_datos, detalles):
     los cambios.
 
     Esta función realiza las siguientes operaciones:
-    1. Inserta la cabecera de la venta (con su id_apartado si aplica).
+    1. Inserta la cabecera de la venta.
     2. Inserta cada producto vendido en 'detalle_venta'.
-    3. Descuenta el stock de las líneas de pasillo (atómico: si no alcanza,
-       se cancela toda la venta).
-    4. ENTREGA DE APARTADO WEB (id_apartado NOT NULL): bloquea el apartado,
-       exige que esté 'confirmado' (pagado), no descuenta su stock (la tienda
-       ya lo hizo) y lo marca como 'entregado'.
+    3. Descuenta el stock (atómico: si no alcanza, se cancela toda la venta).
+    Los pedidos web se entregan con entregar_pedido, no por aquí.
 
     Parámetros:
         factura_datos (dict): Datos de la cabecera de la venta.
             Claves esperadas: fecha, total, metodo_pago, id_cliente,
-            id_usuario, dinero_recibido, cambio, notas, id_apartado.
+            id_usuario, dinero_recibido, cambio, notas.
         detalles (list[dict]): Lista de productos vendidos.
             Cada dict debe tener: id_producto (o id), cantidad, precio, subtotal.
 
@@ -673,23 +670,8 @@ def guardar_factura(factura_datos, detalles):
     # Crea cursor estándar para operaciones de escritura
     cursor = conexion.cursor()
 
-    # Tipo de venta: None = directa de pasillo; entero = entrega de apartado web
-    id_apartado = factura_datos.get('id_apartado')
-    es_entrega_apartado = id_apartado is not None
-
     # Bloque try/except para manejo de errores y rollback
     try:
-
-        # Bloquea la fila del apartado (igual que la tienda) para no chocar con
-        # un cliente que cancela al mismo tiempo. Solo se entrega lo ya pagado.
-        if es_entrega_apartado:
-            cursor.execute(
-                "SELECT estado FROM apartados WHERE id_apartado = %s FOR UPDATE",
-                (id_apartado,)
-            )
-            fila = cursor.fetchone()
-            if not fila or fila[0] != 'confirmado':
-                raise ValueError(f"El apartado #{id_apartado} ya no está pagado y pendiente de entrega")
 
         # Consulta SQL para insertar la cabecera de la venta
         # El estado se establece como 'ACTIVA' por defecto
@@ -703,11 +685,10 @@ def guardar_factura(factura_datos, detalles):
                 id_usuario,
                 dinero_recibido,
                 cambio,
-                notas,
-                id_apartado
+                notas
             )
 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
 
         # Ejecuta el INSERT con los datos de la venta
@@ -721,8 +702,6 @@ def guardar_factura(factura_datos, detalles):
             factura_datos.get('dinero_recibido', 0),
             factura_datos.get('cambio', 0),
             factura_datos.get('notas', ''),
-            id_apartado
-
         ))
 
         # Obtiene el ID auto-generado de la venta recién insertada
@@ -744,15 +723,7 @@ def guardar_factura(factura_datos, detalles):
             # Cantidad de este producto en la venta
             cantidad = detalle.get('cantidad')
 
-            # Indica si esta línea es el producto reservado del apartado web.
-            # Esa línea va en UNIDADES y NO descuenta stock (la tienda ya lo
-            # descontó al confirmar el pago). Las líneas extra de pasillo que el
-            # cajero agregue durante una entrega se tratan como venta directa.
-            es_apartado = bool(detalle.get('es_apartado'))
-
-            # Cantidad en UNIDAD MÍNIMA: cantidad x factor de la presentación
-            # (2 cajas x10 = 20). Las líneas de apartado web no traen factor
-            # porque ya vienen en unidad mínima.
+            # Cantidad en UNIDAD MÍNIMA: cantidad x factor de la presentación (2 cajas x10 = 20).
             factor = float(detalle.get('factor') or 1)
             cantidad_unidades = float(cantidad or 0) * factor
             cantidad_detalle = cantidad_unidades
@@ -782,29 +753,16 @@ def guardar_factura(factura_datos, detalles):
             ))
 
             # --------------------------------
-            # DESCONTAR STOCK (solo líneas de pasillo)
+            # DESCONTAR STOCK
             # --------------------------------
-            # Descuento atómico: si no alcanza, no afecta filas y se cancela
-            # toda la venta. Las líneas del apartado web no se tocan.
-            if not es_apartado:
-                cursor.execute(
-                    "UPDATE producto SET stock = stock - %s "
-                    "WHERE id_producto = %s AND stock >= %s",
-                    (cantidad_unidades, id_producto, cantidad_unidades)
-                )
-                if cursor.rowcount == 0:
-                    raise ValueError(f"No hay stock suficiente de '{detalle.get('nombre') or id_producto}'")
-
-        # --------------------------------
-        # ENTREGA DE APARTADO: MARCAR COMO ENTREGADO
-        # --------------------------------
-        if es_entrega_apartado:
-            sql_entregar_apartado = """
-                UPDATE apartados
-                SET estado = 'entregado'
-                WHERE id_apartado = %s
-            """
-            cursor.execute(sql_entregar_apartado, (id_apartado,))
+            # Descuento atómico: si no alcanza, no afecta filas y se cancela toda la venta.
+            cursor.execute(
+                "UPDATE producto SET stock = stock - %s "
+                "WHERE id_producto = %s AND stock >= %s",
+                (cantidad_unidades, id_producto, cantidad_unidades)
+            )
+            if cursor.rowcount == 0:
+                raise ValueError(f"No hay stock suficiente de '{detalle.get('nombre') or id_producto}'")
 
         # Confirma TODAS las inserciones y actualizaciones en una sola transacción
         conexion.commit()

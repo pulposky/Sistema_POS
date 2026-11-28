@@ -45,21 +45,21 @@ El modelo convierte a unidad mínima al guardar.
 - `obtener_stock_restante`: `stock - cantidad * factor`.
 - `guardar_factura`: `unidades = cantidad * factor`. En el detalle, la cantidad va en unidades y `precio_unitario` es `subtotal / unidades`.
 
-- [ ] Pruebas nuevas (asserts):
+- [x] Pruebas nuevas (asserts):
   - `cambiar_presentacion`: precio 4500, caja ×10, cantidad 2 y descuento 10 % → precio 45000 y subtotal 81000.
   - `guardar_factura`: una línea con factor 10 y cantidad 2, con stock 25 → queda en 5 y el detalle guarda 20.
   - Lo mismo con cantidad 3 → None y el stock sigue en 25.
   - `obtener_stock_restante` con stock 25, cantidad 3 y factor 10 → -5.
-- [ ] Ejecutar: fallan.
-- [ ] Implementar.
-- [ ] Ejecutar `.venv/Scripts/python tests/test_guardar_factura.py` → `OK`.
+- [x] Ejecutar: fallan.
+- [x] Implementar.
+- [x] Ejecutar `.venv/Scripts/python tests/test_guardar_factura.py` → `OK`.
 
 ### Tarea 2: Pantalla de vender
 
 **Archivos:** modificar `App/views/vender.py`. Cambiar el encabezado de la columna 3 a "Presentación" y la celda 3 en
 `agregar_producto_a_tabla` y `eliminar_producto` (las dos reconstrucciones de fila).
 
-- [ ] Agregar `crear_celda_presentacion(producto, index)`: si `len(presentaciones) > 1`, muestra un `ft.Dropdown` con las opciones
+- [x] Agregar `crear_celda_presentacion(producto, index)`: si `len(presentaciones) > 1`, muestra un `ft.Dropdown` con las opciones
   "nombre" y valor `factor`. `on_select`/`on_change` llama a `cambiar_presentacion` y redibuja las celdas 3, 4 (precio),
   6 (subtotal) y 8 (acciones), y luego `actualizar_totales()`. Si no hay presentaciones, deja el texto de `unidad`, como ahora.
-- [ ] Verificar: compila y, en la app real, agregar "Bisagra cierre lento" y cambiarla a Caja x10. El precio se multiplica por 10 y el total se actualiza.
+- [x] Verificar: compila y, en la app real, agregar "Bisagra cierre lento" y cambiarla a Caja x10. El precio se multiplica por 10 y el total se actualiza.
