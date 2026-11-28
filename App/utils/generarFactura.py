@@ -784,7 +784,7 @@ def generar_factura_pdf(
             elementos.append(Paragraph(f"Empresa: {empresa}", estilo_normal))
 
 
-        elementos.append(LINEA_TICKET, estilo_centro)
+        elementos.append(Paragraph(LINEA_TICKET, estilo_centro))
 
         # ---------------- NOTAS POR EMPRESA ----------------
 

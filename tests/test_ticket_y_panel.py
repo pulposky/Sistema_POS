@@ -21,4 +21,12 @@ assert "Envío:" in con and "$6,000" in con.split("Envío:")[1].split("\n")[0]
 sin = _crear_texto_ticket(**base)
 assert "Envío" not in sin
 assert sin == _crear_texto_ticket(**base, envio=0, descuento=0)
+
+# El PDF se arma de verdad (un append mal escrito rompía todos los tickets sin que ningún test lo viera)
+import tempfile
+import utils.generarFactura as gf
+gf._carpeta_facturas = lambda tipo=None: tempfile.mkdtemp()
+ruta = gf.generar_factura_pdf(1, {"nombre": "Ana"}, {"nombre": "Caja"}, base["productos"],
+                              12500, "Efectivo", 12500, 0, abrir=False, envio=6000, descuento=3500)
+assert ruta and os.path.getsize(ruta) > 0, ruta
 print("OK")

@@ -721,6 +721,14 @@ def vender(pagina: ft.Page, ir_a_main, ir_a_menu, usuario):
 
         actualizar_totales()
 
+        # Venta de pedido web: el total guardado incluye envío y cupón, que no son líneas
+        if factura.get("id_apartado"):
+            suma = sum(float(p.get("subtotal", 0) or 0) for p in productos)
+            envio_web, cupon_web = ventas_controller.ajustes_venta_web(factura, suma)
+            if envio_web or cupon_web:
+                total.value = (f"Total: ${float(factura['total']):,.2f}  "
+                               f"(envío +${envio_web:,.0f}, cupón -${cupon_web:,.0f})")
+
         # Activar modo consulta: bloquea edición de productos
         modo_consulta = True
         id_factura_actual = id_venta
