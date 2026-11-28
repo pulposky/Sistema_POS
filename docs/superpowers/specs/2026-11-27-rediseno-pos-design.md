@@ -1,6 +1,6 @@
 # Rediseño del POS: diseño
 
-Fecha: 2026-11-27. Repo: `Proyecto` (POS de escritorio en Python + Flet, base `tienda_db` compartida con la tienda web).
+Fecha: 2026-11-27. Estado: aprobado por el usuario el 2026-11-27. Repo: `Proyecto` (POS de escritorio en Python + Flet, base `tienda_db` compartida con la tienda web).
 
 ## Intención
 
@@ -102,11 +102,11 @@ F6/F7 consultar, F8 crear cliente, F9 pedidos web, Esc volver/cerrar diálogo). 
   Mi decisión.
 - El mismo mecanismo de "documentos en espera" sirve para **Compras y Remisiones**, que hoy también abren
   otra ventana con el segundo F4 (`comprar.py:533`, `remision.py:717`). Es un solo componente compartido, no tres.
-  Mi decisión: así no se pierde lo que hoy se puede hacer.
+  Lo decidió el usuario.
 - Lo que está en espera vive solo en memoria. Si al salir o cerrar hay documentos en espera, se pregunta
-  antes ("Tienes 2 ventas en espera. ¿Salir igual?"). Mi decisión: guardarlo exigiría tocar la base.
+  antes ("Tienes 2 ventas en espera. ¿Salir igual?"). Lo decidió el usuario.
 - **F6/F7** en Vender llevan a la sección Facturas. Vender deja de tener su propio "modo consulta"
-  (`modo_consulta` en `vender.py` se elimina); la consulta de solo lectura vive solo en Facturas. Mi decisión.
+  (`modo_consulta` en `vender.py` se elimina); la consulta de solo lectura vive solo en Facturas. Lo decidió el usuario.
 
 ### Secciones
 
@@ -132,7 +132,7 @@ F6/F7 consultar, F8 crear cliente, F9 pedidos web, Esc volver/cerrar diálogo). 
 1. **Una sola ventana**: se quita `utils/abrirNuevaVentana.py` y la lectura de `POS_VIEW`/`POS_USUARIO` en `main.py`.
 2. **Admin sin cerrar sesión**: si el usuario conectado es admin, entra a "Admin", "Entradas" y "Editar factura"
    directo. Un facturador ve esos ítems con un candado; al tocarlos sale el diálogo de contraseña de admin actual
-   (`solicitarAdmin`) y, si es correcta, entra (como hoy con `admin_authorized=True`). Mi decisión: conserva el permiso de hoy.
+   (`solicitarAdmin`) y, si es correcta, entra (como hoy con `admin_authorized=True`). Lo decidió el usuario.
 3. **Mensajes visibles**: todo `print` que hoy avisa algo al cajero (unos 40, en `views/` y `utils/`) pasa a
    `aviso(...)`. Los `print` de depuración se quedan.
 4. **Sin impresora**: si el ticket no se pudo imprimir, el aviso lo dice y ofrece "Abrir PDF" (genera el PDF
@@ -145,7 +145,7 @@ F6/F7 consultar, F8 crear cliente, F9 pedidos web, Esc volver/cerrar diálogo). 
    la entrega F9 guarda "Nequi" tal cual, en vez de convertirlo a "Transferencia" (`ventasModel._METODO_PAGO_POS`).
    Los indicadores del panel que suman transferencias cuentan también Nequi. Mixto sigue siendo efectivo +
    transferencia (no incluye Nequi). El ticket y el PDF muestran el nombre del método tal cual. Las ventas ya
-   guardadas como "Transferencia" no se tocan. Mi decisión.
+   guardadas como "Transferencia" no se tocan. Lo decidió el usuario.
 
 ### Orden de trabajo (cada paso se sube por separado y deja el POS usable)
 
